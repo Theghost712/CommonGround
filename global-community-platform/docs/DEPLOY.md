@@ -118,22 +118,26 @@ For trying CommonGround online at no cost; not for real users.
   It scales to zero after 5 minutes idle (the next visit cold-starts), WebSocket
   connections are closed after 5 minutes (the app reconnects automatically), and
   request bodies are capped at 4.5 MB, so large video uploads fail.
-- **Upstash Redis** (Vercel Marketplace, free): cache, rate limits, WebSocket tickets
-  and live events. Set `CHANNEL_LAYER=pubsub` so idle sockets don't spend requests.
+- **No Redis needed:** `CHANNEL_LAYER=postgres` keeps the shared cache (WebSocket
+  tickets, rate limits) in a database table and delivers live events between
+  instances with PostgreSQL LISTEN/NOTIFY (`channels_postgres`). With Redis available
+  (e.g. Upstash), set `REDIS_URL` and `CHANNEL_LAYER=pubsub` instead.
 - **Supabase** (free): Postgres in a dedicated `commonground` schema used by its own
-  `commonground` role, plus the private `commonground-media` storage bucket. Uploaded
-  files are served through short-lived signed links straight from Supabase.
+  `commonground` role, plus the private `commonground-media` storage bucket, reached
+  through the Vercel Supabase integration's `SUPABASE_URL` and
+  `SUPABASE_SERVICE_ROLE_KEY` with `SUPABASE_STORAGE_BUCKET=commonground-media` (no S3
+  keys). Uploaded files are served through short-lived signed links from Supabase.
 - No email provider: reset/confirmation emails are printed in the runtime logs.
   No TURN server: calls work on the same network, often not across networks.
 
 Project settings: root directory `global-community-platform`, and environment
 variables `PORT=8000`, `DJANGO_ENV=production`, `DJANGO_DEBUG=False`,
-`DJANGO_SECRET_KEY`, `DATABASE_URL` (Supabase session pooler), `S3_BUCKET`,
-`S3_ENDPOINT_URL`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-`CSP_MEDIA_ORIGINS`, `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`,
-`CHANNEL_LAYER=pubsub`, `NUM_PROXIES=1`, `FORWARDED_ALLOW_IPS=*`,
-`WEB_CONCURRENCY=1`, `DB_POOL_MAX_SIZE=4`. The Redis URL comes from the Upstash
-integration (`REDIS_URL` or `KV_URL`). Hosts and origins default to the Vercel domain.
+`DJANGO_SECRET_KEY`, `DATABASE_URL` (Supabase session pooler, `commonground` role),
+`SUPABASE_STORAGE_BUCKET`, `EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`,
+`CHANNEL_LAYER=postgres`, `DB_POOL_MAX_SIZE=3`, `CHANNELS_DB_POOL_MAX_SIZE=2` (the free
+Supabase pooler has about 15 sessions in total), `NUM_PROXIES=1`, `FORWARDED_ALLOW_IPS=*`,
+`WEB_CONCURRENCY=1`. Hosts and origins default to the Vercel domain.
+Live at https://commonground-pearl.vercel.app (health: `/api/v1/health/`).
 
 To make an account staff (for `/moderation` and `/admin/`), run in Supabase's SQL
 editor: `update commonground.auth_user set is_staff = true, is_superuser = true where username = '<you>';`
