@@ -43,6 +43,24 @@ class TempMediaTestRunner(DiscoverRunner):
         self._throttle_rates = SimpleRateThrottle.THROTTLE_RATES
         SimpleRateThrottle.THROTTLE_RATES = {**self._throttle_rates, "auth": None, "uploads": None, "account_email": None, "calls": None}
 
+    def teardown_databases(self, old_config, **kwargs):
+        # WebSocket tests run database code in worker threads (database_sync_to_async).
+        # Those threads' connections are never closed, and PostgreSQL refuses to drop
+        # a database that still has sessions: the run passed but exited with an error.
+        # End those leftover sessions (this test database only) before dropping it.
+        from django.db import connections
+
+        for alias in connections:
+            connection = connections[alias]
+            if connection.vendor != "postgresql":
+                continue
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE datname = current_database() AND pid <> pg_backend_pid()"
+                )
+        super().teardown_databases(old_config, **kwargs)
+
     def get_resultclass(self):
         return super().get_resultclass() or CacheClearingResult
 
