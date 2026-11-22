@@ -123,7 +123,16 @@ if DATABASE_URL:
             "min_size": int(os.getenv("DB_POOL_MIN_SIZE", "2")),
             "max_size": int(os.getenv("DB_POOL_MAX_SIZE", "10")),
             "timeout": int(os.getenv("DB_POOL_TIMEOUT", "10")),
+            # Close idle connections so quiet instances don't hold pooler slots.
+            "max_idle": int(os.getenv("DB_POOL_MAX_IDLE", "600")),
         }
+    if os.getenv("DB_TRANSACTION_POOLER", "False").lower() == "true":
+        # Behind a transaction-mode pooler (Supabase/Supavisor port 6543, PgBouncer):
+        # one server connection serves many clients, but session features don't
+        # survive between transactions. psycopg's automatic prepared statements and
+        # server-side cursors would break, so both are off.
+        DATABASES["default"].setdefault("OPTIONS", {})["prepare_threshold"] = None
+        DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 else:
     # timeout: wait up to 20s for a write lock instead of failing with "database is locked"
     # when chat sockets and HTTP requests write at the same moment.
@@ -271,8 +280,13 @@ elif os.getenv("CHANNEL_LAYER") == "postgres" and DATABASES["default"]["ENGINE"]
     import copy
 
     INSTALLED_APPS.append("channels_postgres")
-    _channels_db = copy.deepcopy(DATABASES["default"])
+    # LISTEN/NOTIFY needs a real session: with a transaction pooler for normal
+    # queries, CHANNELS_DATABASE_URL points at the session pooler (Supabase: 5432).
+    _channels_url = os.getenv("CHANNELS_DATABASE_URL", "").strip()
+    _channels_db = dj_database_url.parse(_channels_url, conn_max_age=0) if _channels_url else copy.deepcopy(DATABASES["default"])
     _channels_db.setdefault("OPTIONS", {}).pop("pool", None)
+    _channels_db["OPTIONS"].pop("prepare_threshold", None)
+    _channels_db.pop("DISABLE_SERVER_SIDE_CURSORS", None)
     DATABASES["channels_postgres"] = {**_channels_db, "TEST": {"MIRROR": "default"}}
     CHANNEL_LAYERS = {
         "default": {
@@ -283,7 +297,11 @@ elif os.getenv("CHANNEL_LAYER") == "postgres" and DATABASES["default"]["ENGINE"]
                 "TIME_ZONE": None, "CONN_MAX_AGE": 0, "CONN_HEALTH_CHECKS": False,
                 "AUTOCOMMIT": True, "ATOMIC_REQUESTS": False,
                 **copy.deepcopy(_channels_db),
-                "PSYCOPG_OPTIONS": {"min_size": 1, "max_size": int(os.getenv("CHANNELS_DB_POOL_MAX_SIZE", "2"))},
+                "PSYCOPG_OPTIONS": {
+                    "min_size": 0,
+                    "max_size": int(os.getenv("CHANNELS_DB_POOL_MAX_SIZE", "2")),
+                    "max_idle": int(os.getenv("DB_POOL_MAX_IDLE", "600")),
+                },
                 "group_expiry": 24 * 3600,
             },
         }
