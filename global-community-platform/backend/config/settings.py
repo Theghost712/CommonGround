@@ -159,7 +159,23 @@ CSP_MEDIA_ORIGINS = env_list("CSP_MEDIA_ORIGINS", "")
 # Cloudflare R2, Supabase Storage…) when S3_BUCKET is set. Hosts like Render's free
 # tier wipe the local disk on every restart, so they need object storage.
 S3_BUCKET = os.getenv("S3_BUCKET", "")
-if S3_BUCKET:
+# Supabase Storage through its REST API, using the server key the Supabase integration
+# provides (Vercel Marketplace): no separate S3 keys needed.
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "").strip()
+SUPABASE_URL_EXPIRE = int(os.getenv("SUPABASE_URL_EXPIRE", "3600"))
+USE_S3 = bool(S3_BUCKET and os.getenv("S3_ACCESS_KEY_ID", "").strip())
+USE_SUPABASE_STORAGE = bool(not USE_S3 and SUPABASE_STORAGE_BUCKET and SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+if USE_SUPABASE_STORAGE:
+    STORAGES = {
+        "default": {"BACKEND": "apps.common.supabase_storage.SupabaseStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    MEDIA_REDIRECT_TO_STORAGE = True
+    # Signed URLs point at the project's API host.
+    CSP_MEDIA_ORIGINS = [*CSP_MEDIA_ORIGINS, SUPABASE_URL.rstrip("/")]
+elif USE_S3:
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",

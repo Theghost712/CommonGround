@@ -29,6 +29,14 @@ def health(request):
         checks["cache"] = "ok" if cache.get("health:probe") == "1" else "error"
     except Exception:
         checks["cache"] = "error"
+    from django.core.files.storage import default_storage
+
+    probe = getattr(default_storage, "check", None)
+    if probe is not None:  # remote object storage (Supabase): is the bucket reachable?
+        try:
+            checks["storage"] = "ok" if probe() else "error"
+        except Exception:
+            checks["storage"] = "error"
     healthy = all(value == "ok" for value in checks.values())
     return JsonResponse(
         {"status": "ok" if healthy else "error", "checks": checks, "ms": round((time.perf_counter() - started) * 1000, 1)},
