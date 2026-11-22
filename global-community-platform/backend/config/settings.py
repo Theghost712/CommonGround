@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "apps.safety",
 ]
 MIDDLEWARE = [
+    "apps.common.health.HealthCheckMiddleware",  # first: probes use internal IPs/plain HTTP
     "django.middleware.security.SecurityMiddleware", "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware", "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -85,7 +86,7 @@ if not DEBUG:
     # Serves collected static files and the built React app (single-service hosting).
     # In development Vite serves the app, so it's left out (it would warn about a
     # missing STATIC_ROOT on every request).
-    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+    MIDDLEWARE.insert(MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [BASE_DIR / "templates"], "APP_DIRS": True,

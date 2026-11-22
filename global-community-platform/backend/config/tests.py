@@ -162,3 +162,14 @@ class HealthCheckTests(SimpleTestCase):
             response = self.client.get("/api/v1/health/")
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.json()["checks"]["database"], "error")
+
+
+class HealthCheckBehindProxyTests(SimpleTestCase):
+    databases = {"default"}
+
+    def test_probe_by_internal_ip_is_not_rejected_by_allowed_hosts(self):
+        response = self.client.get("/api/v1/health/", HTTP_HOST="10.204.1.7:10000")
+        self.assertEqual(response.status_code, 200)
+
+    def test_other_paths_still_validate_the_host(self):
+        self.assertEqual(self.client.get("/api/v1/discussions/", HTTP_HOST="evil.example").status_code, 400)
