@@ -88,6 +88,8 @@ export function getErrorMessage(error: unknown): string {
       const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? ` Please wait ${waitText(retryAfter)} and try again.` : ' Please wait a moment and try again.'
       return `Too many attempts.${wait}`
     }
+    // The host refused the request body (Vercel caps requests at 4.5 MB).
+    if (error.response?.status === 413) return 'This upload is too large for the server. Try a shorter video or fewer photos at once (about 4 MB per post).'
     const data = error.response?.data
     if (typeof data === 'string') return data
     if (data && typeof data === 'object') {

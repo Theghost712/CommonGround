@@ -44,6 +44,22 @@ if RENDER_EXTERNAL_HOSTNAME:
     }.items():
         os.environ.setdefault(key, value)
 
+# On Vercel: the production domain and this deployment's own URL (system env vars).
+_vercel_hosts = [h for h in {os.getenv("VERCEL_PROJECT_PRODUCTION_URL", "").strip(), os.getenv("VERCEL_URL", "").strip()} if h]
+if _vercel_hosts:
+    _primary = os.getenv("VERCEL_PROJECT_PRODUCTION_URL", "").strip() or _vercel_hosts[0]
+    for key, value in {
+        "DJANGO_ALLOWED_HOSTS": ",".join(_vercel_hosts),
+        "CORS_ALLOWED_ORIGINS": ",".join(f"https://{h}" for h in _vercel_hosts),
+        "CSRF_TRUSTED_ORIGINS": ",".join(f"https://{h}" for h in _vercel_hosts),
+        "FRONTEND_URL": f"https://{_primary}",
+    }.items():
+        os.environ.setdefault(key, value)
+
+# Vercel's Redis (Upstash via the Marketplace) provides KV_URL / REDIS_URL.
+if not os.getenv("REDIS_URL") and os.getenv("KV_URL"):
+    os.environ["REDIS_URL"] = os.environ["KV_URL"]
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-this-secret-key-before-production")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 
@@ -220,7 +236,10 @@ SIMPLE_JWT = {
 }
 REDIS_URL = os.getenv("REDIS_URL")
 if REDIS_URL:
-    CHANNEL_LAYERS = {"default": {"BACKEND": "channels_redis.core.RedisChannelLayer", "CONFIG": {"hosts": [REDIS_URL]}}}
+    # CHANNEL_LAYER=pubsub uses Redis pub/sub instead of polling lists: no commands
+    # while sockets sit idle, which matters on per-request-billed Redis (Upstash).
+    _layer = "channels_redis.pubsub.RedisPubSubChannelLayer" if os.getenv("CHANNEL_LAYER") == "pubsub" else "channels_redis.core.RedisChannelLayer"
+    CHANNEL_LAYERS = {"default": {"BACKEND": _layer, "CONFIG": {"hosts": [REDIS_URL]}}}
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
