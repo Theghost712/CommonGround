@@ -32,6 +32,18 @@ def load_env_file(path):
 load_env_file(BASE_DIR / ".env")
 load_env_file(BASE_DIR.parent / ".env")
 
+# On Render, the public hostname is known only at runtime: use it as the default for
+# hosts, origins and email links (explicit environment variables still win).
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if RENDER_EXTERNAL_HOSTNAME:
+    for key, value in {
+        "DJANGO_ALLOWED_HOSTS": RENDER_EXTERNAL_HOSTNAME,
+        "CORS_ALLOWED_ORIGINS": f"https://{RENDER_EXTERNAL_HOSTNAME}",
+        "CSRF_TRUSTED_ORIGINS": f"https://{RENDER_EXTERNAL_HOSTNAME}",
+        "FRONTEND_URL": f"https://{RENDER_EXTERNAL_HOSTNAME}",
+    }.items():
+        os.environ.setdefault(key, value)
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-change-this-secret-key-before-production")
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 
@@ -69,6 +81,11 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware", "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+if not DEBUG:
+    # Serves collected static files and the built React app (single-service hosting).
+    # In development Vite serves the app, so it's left out (it would warn about a
+    # missing STATIC_ROOT on every request).
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [BASE_DIR / "templates"], "APP_DIRS": True,
@@ -111,6 +128,45 @@ STATIC_ROOT = Path(os.getenv("STATIC_ROOT", BASE_DIR / "staticfiles"))
 # When set (e.g. "/protected-media/"), media responses hand the file to nginx via
 # X-Accel-Redirect after Django checks permission; nginx then streams it (with Range).
 MEDIA_ACCEL_REDIRECT_PREFIX = os.getenv("MEDIA_ACCEL_REDIRECT_PREFIX", "")
+# Single-service hosting (e.g. Render): Django also serves the built React app.
+# FRONTEND_DIST points at frontend/dist; WhiteNoise serves its files (hashed assets
+# cached for a year) and every other non-API path returns index.html.
+FRONTEND_DIST = Path(os.getenv("FRONTEND_DIST", BASE_DIR.parent / "frontend" / "dist"))
+WHITENOISE_ROOT = FRONTEND_DIST if FRONTEND_DIST.is_dir() else None
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^/assets/.+-[A-Za-z0-9_-]{8,}\.(js|css|woff2?|svg|png|jpe?g|webp)$"
+# Content-Security-Policy for the app shell when Django serves it (nginx sets its own).
+# Extra media origins (e.g. https://<project>.supabase.co for uploaded files) are added.
+CSP_MEDIA_ORIGINS = env_list("CSP_MEDIA_ORIGINS", "")
+
+# Uploaded files: local disk by default; S3-compatible object storage (AWS S3,
+# Cloudflare R2, Supabase Storage…) when S3_BUCKET is set. Hosts like Render's free
+# tier wipe the local disk on every restart, so they need object storage.
+S3_BUCKET = os.getenv("S3_BUCKET", "")
+if S3_BUCKET:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": {
+                "bucket_name": S3_BUCKET,
+                "endpoint_url": os.getenv("S3_ENDPOINT_URL") or None,
+                "region_name": os.getenv("S3_REGION") or None,
+                "access_key": os.getenv("S3_ACCESS_KEY_ID", ""),
+                "secret_key": os.getenv("S3_SECRET_ACCESS_KEY", ""),
+                "default_acl": None,
+                "file_overwrite": False,
+                "querystring_auth": True,
+                "querystring_expire": int(os.getenv("S3_URL_EXPIRE", "3600")),
+                "addressing_style": "path",
+                "signature_version": "s3v4",
+            },
+        },
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+    # After Django checks permission, media responses redirect to a short-lived
+    # signed URL so the bytes (and video Range requests) go straight from storage.
+    MEDIA_REDIRECT_TO_STORAGE = os.getenv("MEDIA_REDIRECT_TO_STORAGE", "True").lower() == "true"
+else:
+    MEDIA_REDIRECT_TO_STORAGE = False
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -268,6 +324,8 @@ if DJANGO_ENV == "production":
     # Behind a TLS-terminating proxy (nginx / load balancer).
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+    # Load-balancer health probes often arrive over plain HTTP inside the platform.
+    SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/$"]
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     REFRESH_COOKIE_SECURE = True

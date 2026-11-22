@@ -1,0 +1,64 @@
+# Render Blueprint for a free test deployment of CommonGround.
+# Render dashboard → New → Blueprint → pick this repo. You'll be asked for the
+# values marked `sync: false` (Supabase database URL and storage keys).
+services:
+  - type: web
+    name: commonground
+    runtime: docker
+    plan: free
+    region: virginia             # next to the Supabase database (us-east-1)
+    dockerContext: ./global-community-platform
+    dockerfilePath: ./global-community-platform/Dockerfile
+    healthCheckPath: /api/v1/health/
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: commonground-redis
+          property: connectionString
+      # Supabase project fluezjxonarjbytqsrmc, dedicated role "commonground" whose
+      # search_path is its own schema (session pooler, port 5432). Secret: paste it.
+      - key: DATABASE_URL
+        sync: false
+      - key: S3_BUCKET
+        value: commonground-media
+      - key: S3_ENDPOINT_URL
+        value: https://fluezjxonarjbytqsrmc.storage.supabase.co/storage/v1/s3
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_ACCESS_KEY_ID      # Supabase → Project Settings → Storage → S3 access keys
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: CSP_MEDIA_ORIGINS
+        value: https://fluezjxonarjbytqsrmc.storage.supabase.co
+      # No email provider yet: emails (reset / confirm links) are printed in the Render logs.
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.console.EmailBackend
+      - key: REFRESH_COOKIE_SECURE
+        value: "True"
+      - key: NUM_PROXIES
+        value: "1"
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"
+      # Free instance: 512 MB RAM, so one worker and a small DB pool.
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: DB_POOL_MAX_SIZE
+        value: "4"
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: keyvalue
+    name: commonground-redis
+    plan: free
+    region: virginia
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []   # reachable only from your Render services

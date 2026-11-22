@@ -108,3 +108,32 @@ sudo systemctl reload commonground
 - More traffic: add app servers behind a load balancer; they share PostgreSQL and Redis.
   Uploaded media must then live on shared storage (NFS or S3-compatible) instead of local disk.
 - See `docs/SCALING.md` for measured numbers.
+
+## Free test deployment (Render + Supabase)
+
+For trying CommonGround online at no cost. Not for real users: the free server
+sleeps after 15 minutes without visitors (the next visit waits ~1 minute) and has
+512 MB RAM, and Supabase pauses a free project after a week without traffic.
+
+How it is wired (`render.yaml` at the repository root):
+
+- **Render web service** (Docker, free): the React app, the API and WebSockets on one
+  `https://<name>.onrender.com` address. Migrations run on every start.
+- **Render Key Value** (free Redis, 25 MB): cache, rate limits, WebSocket tickets, live events.
+- **Supabase** (free): Postgres in a dedicated `commonground` schema, used by its own
+  `commonground` role, and a private `commonground-media` storage bucket. Uploaded
+  photos and videos are served through short-lived signed links straight from Supabase.
+- No email provider: reset and confirmation emails are printed in Render's **Logs** tab.
+- No TURN server: calls work on the same network, often not between mobile data and Wi-Fi.
+- No cron on the free plan: event reminders aren't sent and expired story files stay
+  in storage (expired stories are still hidden).
+
+Steps:
+
+1. Push this repository to GitHub (a private repository is fine).
+2. Supabase dashboard → Project Settings → Storage → **S3 access keys** → New key.
+3. Render dashboard → New → **Blueprint** → connect the repository. When asked, paste
+   `DATABASE_URL`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`.
+4. Wait for the first deploy (~5–10 minutes), then open the `.onrender.com` address
+   and register. To make an account staff (for `/moderation` and `/admin/`), run in
+   Supabase's SQL editor: `update commonground.auth_user set is_staff = true, is_superuser = true where username = '<you>';`

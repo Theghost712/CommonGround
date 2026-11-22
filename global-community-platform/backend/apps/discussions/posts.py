@@ -188,7 +188,8 @@ class DiscussionVideoView(APIView):
             raise PermissionDenied("This video link has expired. Reload the page.")
         attachment = get_object_or_404(DiscussionAttachment, pk=pk, content_type__startswith="video/")
         response = ranged_file_response(request, attachment.file, attachment.content_type, cache_seconds=6 * 60 * 60)
-        response["Cache-Control"] = "private, max-age=21600"
+        if response.status_code != 302:  # a redirect to signed storage keeps its short cache
+            response["Cache-Control"] = "private, max-age=21600"
         return response
 
 
@@ -208,5 +209,6 @@ class DiscussionImageView(APIView):
         if not field:
             raise Http404
         response = ranged_file_response(request, field, "image/webp", cache_seconds=6 * 60 * 60)
-        response["Cache-Control"] = "private, max-age=21600, immutable"
+        if response.status_code != 302:
+            response["Cache-Control"] = "private, max-age=21600, immutable"
         return response

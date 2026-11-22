@@ -77,6 +77,14 @@ def ranged_file_response(request, field, content_type, cache_seconds=3600):
     """
     from django.conf import settings
 
+    if getattr(settings, "MEDIA_REDIRECT_TO_STORAGE", False):
+        # Object storage: hand the browser a short-lived signed URL. The storage
+        # service handles Range requests itself (video seeking keeps working).
+        from django.http import HttpResponseRedirect
+
+        response = HttpResponseRedirect(field.storage.url(field.name))
+        response["Cache-Control"] = "private, max-age=300"
+        return response
     prefix = getattr(settings, "MEDIA_ACCEL_REDIRECT_PREFIX", "")
     if prefix:
         response = HttpResponse(content_type=content_type)

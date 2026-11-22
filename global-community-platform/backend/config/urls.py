@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from rest_framework.routers import DefaultRouter
 from apps.events.views import CommunityEventViewSet
 
@@ -28,6 +28,7 @@ router.register("notifications", NotificationViewSet, basename="notification")
 router.register("events", CommunityEventViewSet, basename="event")
 
 from apps.common.health import health
+from apps.common.spa import spa_index
 
 urlpatterns = [
     path("api/v1/health/", health, name="health"),
@@ -64,4 +65,6 @@ urlpatterns = [
     path("api/v1/", include("apps.moderation.urls")),
     path("api/v1/", include("apps.calls.urls")),
     path("api/v1/", include(router.urls)),
+    # Everything else is the React app (client-side routes like /home, /u/amina).
+    re_path(r"^(?!api/|admin/|ws/|static/|media/).*$", spa_index, name="spa"),
 ]
