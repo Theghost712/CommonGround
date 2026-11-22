@@ -1,0 +1,22 @@
+# Private data: never commit
+leftovers-archive-*/
+*.sqlite3
+*.sqlite3-journal
+.env
+.env.*
+!.env.example
+global-community-platform/backend/media/
+global-community-platform/backend/staticfiles/
+global-community-platform/backend/sent_emails/
+global-community-platform/backend/event_reminders.log
+
+# Build output and dependencies
+node_modules/
+dist/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+.vercel

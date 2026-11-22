@@ -1,0 +1,14 @@
+# CommonGround scheduled jobs. Install with:  crontab -u commonground deploy/crontab.example
+# (fix the path first). Every job is idempotent: running it twice does no harm.
+# deploy/manage.sh runs manage.py; settings.py reads the .env next to deploy/.
+CG=/srv/commonground/deploy/manage.sh
+LOG=/var/log/commonground/cron.log
+
+# Event reminders (every 5 minutes)
+*/5 * * * *  $CG send_event_reminders >> $LOG 2>&1
+# Delete stories older than 24 hours, and their files (hourly)
+17 * * * *   $CG purge_expired_stories >> $LOG 2>&1
+# Drop expired refresh-token records so the blacklist tables don't grow forever (daily)
+40 3 * * *   $CG flushexpiredtokens >> $LOG 2>&1
+# Remove expired Django admin sessions (daily)
+50 3 * * *   $CG clearsessions >> $LOG 2>&1

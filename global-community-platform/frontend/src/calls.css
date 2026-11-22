@@ -1,0 +1,29 @@
+.call-screen{position:fixed;inset:0;z-index:200;background:radial-gradient(circle at 50% 30%,#3b3486,#17152f 70%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:max(48px,env(safe-area-inset-top)) 20px max(36px,env(safe-area-inset-bottom));overflow:hidden}
+.call-screen.has-video{background:#000}
+.call-remote{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.call-hidden-audio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.call-identity{position:relative;z-index:1;display:grid;justify-items:center;gap:10px;text-align:center;margin-top:6vh;text-shadow:0 1px 6px #0008}
+.has-video .call-identity{margin-top:0;align-self:flex-start;justify-items:start;text-align:left}
+.has-video .call-identity h2{font-size:18px}
+.call-avatar{width:112px;height:112px;border-radius:50%;background:#6558d9;display:grid;place-items:center;font:800 44px Manrope,sans-serif;box-shadow:0 0 0 10px #ffffff10}
+.call-avatar.is-ringing{animation:call-pulse 1.6s ease-out infinite}
+@keyframes call-pulse{0%{box-shadow:0 0 0 0 #ffffff40}100%{box-shadow:0 0 0 36px #ffffff00}}
+@media (prefers-reduced-motion:reduce){.call-avatar.is-ringing{animation:none}}
+.call-identity h2{font:800 26px Manrope,sans-serif;margin:8px 0 0;overflow-wrap:anywhere;max-width:90vw}
+.call-identity p{margin:0;font-size:14px;color:#d9d6ff}
+.call-timer{font-variant-numeric:tabular-nums}
+.call-local{position:absolute;z-index:2;right:16px;bottom:130px;width:min(28vw,180px);aspect-ratio:3/4;object-fit:cover;border-radius:14px;border:2px solid #ffffff55;background:#222;transform:scaleX(-1)}
+.call-local.is-off{opacity:.25}
+.call-controls{position:relative;z-index:2;display:flex;gap:22px;justify-content:center;flex-wrap:wrap}
+.call-btn{border:0;background:#ffffff22;color:#fff;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;position:relative;backdrop-filter:blur(6px)}
+.call-btn span{position:absolute;top:calc(100% + 6px);font-size:11px;font-weight:600;white-space:nowrap;color:#e9e7ff}
+.call-btn:only-child{width:auto;padding:0 28px;border-radius:32px}
+.call-btn:only-child span{position:static}
+.call-btn.is-on{background:#fff;color:#17152f}
+.call-btn.is-accept{background:#22a559}
+.call-btn.is-decline{background:#e5484d}
+.call-controls:has(.is-accept){gap:80px}
+.chat-call-button{color:#5145c5}
+.chat-call-button:disabled{opacity:.4}
+.chat-header{position:relative}
+.chat-call-error{position:absolute;top:calc(100% + 6px);right:12px;z-index:30;max-width:min(360px,90vw);background:#fff5f5;border:1px solid #f6dddd;color:#b34e4e;border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:0 8px 24px #0001;cursor:pointer}

@@ -1,0 +1,241 @@
+.ce-events {
+  display: grid;
+  gap: 24px;
+}
+
+.ce-create-panel {
+  padding: 24px;
+}
+
+.ce-section-heading,
+.ce-events-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.ce-section-heading h2,
+.ce-events-heading h2 {
+  margin: 5px 0;
+}
+
+.ce-section-heading p,
+.ce-events-heading p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.ce-form-actions,
+.ce-manager-actions,
+.ce-rsvp-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ce-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.ce-notice button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.ce-event-count {
+  padding: 7px 13px;
+  border-radius: 20px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ce-event-list {
+  display: grid;
+  gap: 18px;
+}
+
+.ce-event-card {
+  padding: 22px;
+}
+
+.ce-event-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.ce-event-top h3 {
+  margin: 10px 0 0;
+  font-size: 19px;
+  color: #0f172a;
+}
+
+.ce-status {
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ce-status-scheduled {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.ce-status-cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.ce-event-description {
+  margin: 16px 0;
+  line-height: 1.7;
+  color: #475569;
+  white-space: pre-wrap;
+}
+
+.ce-event-meta {
+  display: grid;
+  gap: 11px;
+  padding: 15px 0;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ce-event-meta span,
+.ce-event-stats span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.ce-event-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+}
+
+.ce-rsvp-section {
+  padding: 15px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ce-rsvp-section > strong {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.ce-rsvp-button {
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #475569;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.ce-rsvp-button:hover,
+.ce-rsvp-button.selected {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: white;
+}
+
+.ce-rsvp-button:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.ce-event-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 13px;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ce-attendees-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 0;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ce-attendees {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.ce-attendees h4 {
+  margin: 0 0 12px;
+}
+
+.ce-attendee-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.ce-response {
+  font-weight: 700;
+  text-transform: capitalize;
+  color: #2563eb;
+}
+
+.ce-form-actions {
+  margin-top: 5px;
+}
+
+@media (max-width: 640px) {
+  .ce-create-panel,
+  .ce-event-card {
+    padding: 16px;
+  }
+
+  .ce-section-heading,
+  .ce-events-heading,
+  .ce-event-top {
+    align-items: flex-start;
+  }
+
+  .ce-event-stats {
+    gap: 12px;
+  }
+}

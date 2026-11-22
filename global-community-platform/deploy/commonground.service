@@ -1,0 +1,23 @@
+# systemd unit for the CommonGround app server (HTTP + WebSockets).
+# Install: cp deploy/commonground.service /etc/systemd/system/ && systemctl enable --now commonground
+[Unit]
+Description=CommonGround (gunicorn + uvicorn workers)
+After=network.target postgresql.service redis-server.service
+
+[Service]
+User=commonground
+Group=commonground
+WorkingDirectory=/srv/commonground/backend
+EnvironmentFile=/srv/commonground/.env
+ExecStart=/srv/commonground/backend/.venv/bin/gunicorn -c /srv/commonground/deploy/gunicorn.conf.py config.asgi:application
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/commonground/backend/media /var/log/commonground
+
+[Install]
+WantedBy=multi-user.target

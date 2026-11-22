@@ -1,0 +1,41 @@
+/* Account recovery (auth pages) */
+.auth-forgot{text-align:right;margin:12px 0 0;font-size:11px}
+.auth-forgot a{color:#6257cf;font-weight:700}
+.auth-result{display:flex;gap:12px;align-items:flex-start;background:#effaf4;border:1px solid #d7f0e2;color:#287a58;border-radius:12px;padding:14px 15px;margin-bottom:16px}
+.auth-result svg{flex:none;margin-top:1px}
+.auth-result strong{font-size:12px;display:block;margin-bottom:3px}
+.auth-result p{margin:0;font-size:11px;line-height:1.6;color:#3d6e57}
+.auth-result .auth-result-small{margin-top:6px;font-size:10px;color:#5d8a73}
+.auth-result.is-error{background:#fff5f5;border-color:#f6dddd;color:#b34e4e}
+.auth-result.is-error p{color:#9a4747}
+.auth-form-wrap .button.auth-submit{display:flex;margin-top:10px}
+.auth-form-wrap .button-outline.auth-submit{margin-bottom:4px}
+
+/* Account security settings */
+.security-card{gap:12px}
+.security-form{display:grid;gap:12px}
+.security-form label{display:grid;gap:7px;color:#5e6474;font-size:10px;font-weight:700}
+.security-form input{width:100%;border:1px solid #e6e8f0;background:#fcfcfe;border-radius:8px;padding:11px 12px;outline:none;color:#363c4d;font-size:12px}
+.security-form input:focus{border-color:#a39aef;box-shadow:0 0 0 3px #7669e51a}
+.security-form .form-hint{margin:0}
+.security-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.security-actions.is-start{justify-content:flex-start}
+.security-inline-button{justify-self:start}
+.security-email-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:#363c4d;min-width:0}
+.security-email-row strong{overflow-wrap:anywhere}
+.security-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 9px;font-size:10px;font-weight:700}
+.security-badge.is-ok{background:#effaf4;color:#287a58}
+.security-badge.is-warn{background:#fff7e8;color:#9a6516}
+.button.button-danger-outline{background:#fff;border:1px solid #f1d4d4;color:#b34e4e}
+.button.button-danger-outline:hover{background:#fff6f6}
+
+/* "Confirm your email" strip under the top bar */
+.verify-banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff8ea;border-bottom:1px solid #f4e3c1;color:#7b5514;padding:10px 42px;font-size:12px}
+.verify-banner svg{flex:none}
+.verify-banner span{flex:1;min-width:200px;line-height:1.5}
+.verify-banner button{border:0;background:none;font-weight:700;color:#6a4508;padding:4px 2px;font-size:12px;text-decoration:underline}
+.verify-banner .verify-banner-close{text-decoration:none;color:#a07c3a}
+@media (max-width:760px){
+  .verify-banner{padding:10px 16px}
+  .security-page .form-grid{grid-template-columns:1fr}
+}

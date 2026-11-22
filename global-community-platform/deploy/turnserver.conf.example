@@ -1,0 +1,20 @@
+# coturn: relays call audio/video when two people can't connect directly
+# (most mobile networks and many offices). Needed for reliable calls on the internet.
+# apt install coturn; copy to /etc/turnserver.conf; open UDP 3478, TCP 5349 and UDP 49152-65535.
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+# Same value as TURN_SECRET in the app's .env (generate: openssl rand -hex 32)
+static-auth-secret=CHANGE_ME
+realm=example.org
+cert=/etc/letsencrypt/live/turn.example.org/fullchain.pem
+pkey=/etc/letsencrypt/live/turn.example.org/privkey.pem
+total-quota=300
+no-multicast-peers
+# Never relay to private networks (stops the TURN server being used to reach your LAN).
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255
+# App .env:  TURN_URLS=turn:turn.example.org:3478,turns:turn.example.org:5349   TURN_SECRET=<same secret>

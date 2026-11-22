@@ -1,0 +1,80 @@
+{% extends "admin/base_site.html" %}
+{% load i18n log %}
+
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="cg-dashboard">
+  <section class="cg-dashboard-hero">
+    <div>
+      <span class="cg-eyebrow">COMMONGROUND WORKSPACE</span>
+      <h1>Platform overview</h1>
+      <p>Manage communities, conversations, members and platform activity.</p>
+    </div>
+    <div class="cg-hero-mark" aria-hidden="true">cg</div>
+  </section>
+
+  {% if admin_dashboard_stats %}
+  <section class="cg-stat-grid" aria-label="Platform statistics">
+    {% for stat in admin_dashboard_stats %}
+    <a class="cg-stat-card cg-stat-{{ stat.tone }}" href="{{ stat.url }}">
+      <span class="cg-stat-label">{{ stat.label }}</span>
+      <strong class="cg-stat-value">{{ stat.value }}</strong>
+      <span class="cg-stat-hint">{{ stat.hint }}</span>
+    </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <div class="cg-dashboard-columns">
+    <section class="cg-panel cg-app-panel">
+      <div class="cg-panel-heading">
+        <div><span class="cg-eyebrow">ADMINISTRATION</span><h2>Apps and records</h2></div>
+      </div>
+      {% if app_list %}
+        {% for app in app_list %}
+        <article class="cg-app-group">
+          <h3>{{ app.name }}</h3>
+          <div class="cg-model-list">
+            {% for model in app.models %}
+            <div class="cg-model-row">
+              {% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}<span>{{ model.name }}</span>{% endif %}
+              <div class="cg-model-actions">
+                {% if model.add_url %}<a class="cg-add-link" href="{{ model.add_url }}">Add</a>{% endif %}
+                {% if model.admin_url %}<a class="cg-open-link" href="{{ model.admin_url }}" aria-label="View {{ model.name }}">View records <span aria-hidden="true">→</span></a>{% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </article>
+        {% endfor %}
+      {% else %}
+        <p class="cg-empty-state">You do not have permission to view or edit any records.</p>
+      {% endif %}
+    </section>
+
+    <aside class="cg-panel cg-activity-panel">
+      <div class="cg-panel-heading"><div><span class="cg-eyebrow">AUDIT TRAIL</span><h2>Recent activity</h2></div></div>
+      {% get_admin_log 8 as admin_log for_user user %}
+      {% if admin_log %}
+        <ol class="cg-activity-list">
+          {% for entry in admin_log %}
+          <li class="cg-activity-item">
+            <span class="cg-activity-dot {% if entry.is_addition %}is-add{% elif entry.is_deletion %}is-delete{% else %}is-change{% endif %}" aria-hidden="true"></span>
+            <div>
+              <div class="cg-activity-title">
+                {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}
+              </div>
+              <span class="cg-activity-meta">{% if entry.is_addition %}Added{% elif entry.is_deletion %}Deleted{% else %}Updated{% endif %}{% if entry.content_type %} · {{ entry.content_type.name }}{% endif %}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="cg-empty-state">Your recent changes will appear here.</p>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

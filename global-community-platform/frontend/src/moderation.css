@@ -1,0 +1,45 @@
+.moderation-page .home-tabs{margin-bottom:4px}
+.mod-queue{display:grid;gap:14px}
+.mod-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.mod-card header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;color:#8a90a0}
+.mod-card header time{margin-left:auto}
+.mod-type{background:#f0efff;color:#5145c5;border-radius:6px;padding:4px 8px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+.mod-count{display:inline-flex;align-items:center;gap:5px;color:#b34e4e;font-size:12px}
+.mod-community{color:#5e6474;font-weight:600}
+.mod-reasons{display:flex;gap:6px;flex-wrap:wrap}
+.mod-reasons span{background:#fff5f5;border:1px solid #f6dddd;color:#9a4747;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700}
+.mod-preview{display:flex;gap:12px;background:#f8f8fc;border:1px solid #eff0f5;border-radius:10px;padding:12px;min-width:0}
+.mod-preview img{width:72px;height:72px;object-fit:cover;border-radius:8px;flex:none}
+.mod-preview>div{min-width:0;display:grid;gap:8px}
+.mod-preview p{margin:0;font-size:13px;line-height:1.55;color:#363c4d;white-space:pre-wrap;overflow-wrap:anywhere}
+.mod-gone{color:#8a90a0!important;font-style:italic}
+.mod-links{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;font-weight:700}
+.mod-links a{color:#5145c5;display:inline-flex;align-items:center;gap:4px}
+.mod-flag{background:#fff7e8;color:#9a6516;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700}
+.mod-ok{color:#287a58;font-weight:700}
+.mod-details{margin:0;padding:0 0 0 2px;list-style:none;display:grid;gap:4px;font-size:12px;color:#5e6474;font-style:italic;overflow-wrap:anywhere}
+.mod-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mod-actions .button{height:36px}
+.mod-danger{color:#b34e4e!important;border-color:#f1d4d4!important}
+.button.button-danger{background:#c24141;color:#fff}
+.button.button-danger:hover{background:#a83535}
+.mod-panel{display:grid;gap:10px;border:1px solid #f1d4d4;background:#fffafa;border-radius:12px;padding:14px}
+.mod-panel>strong{font-size:13px}
+.mod-panel>p{margin:0;font-size:12px;color:#7c6262}
+.mod-panel label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#5e6474}
+.mod-panel textarea,.mod-panel select{width:100%;border:1px solid #e6e8f0;border-radius:8px;padding:9px 11px;font-size:13px;background:#fff}
+.mod-panel .mod-check{display:flex;align-items:center;gap:8px;font-weight:600}
+.mod-lookup{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px;margin-bottom:14px}
+.mod-lookup form{display:flex;gap:8px;flex-wrap:wrap}
+.mod-lookup .home-search{flex:1;min-width:200px}
+.mod-record{display:grid;gap:8px;font-size:13px}
+.mod-record .button{justify-self:start}
+.mod-record-status{font-size:12px;color:#5e6474;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.mod-log{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.mod-log li{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:5px;font-size:13px;min-width:0}
+.mod-log small{color:#8a90a0;font-size:11px}
+.mod-log p{margin:0;color:#4c5364;overflow-wrap:anywhere}
+.mod-log details{font-size:12px;color:#5e6474}
+.mod-log summary{cursor:pointer;font-weight:700;color:#5145c5}
+.mod-log a{color:#5145c5;font-weight:700}
+@media (max-width:560px){.mod-card header time{margin-left:0;width:100%}}

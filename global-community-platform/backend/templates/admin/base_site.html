@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | CommonGround Admin{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/commonground-admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+  <a id="site-name" class="cg-brand" href="{% url 'admin:index' %}">
+    <span class="cg-brand-mark" aria-hidden="true">cg</span>
+    <span class="cg-brand-copy"><strong>CommonGround</strong><small>Platform administration</small></span>
+  </a>
+{% endblock %}
+
+{% block welcome-msg %}
+  <span class="cg-welcome">Welcome, <strong>{% firstof user.get_short_name user.get_username %}</strong></span>
+{% endblock %}
+
+{% block nav-global %}<div class="cg-topbar-label">Community platform control center</div>{% endblock %}

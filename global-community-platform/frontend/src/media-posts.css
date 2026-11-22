@@ -1,0 +1,71 @@
+/* ---------- Video player (feed, post page, reels) ---------- */
+.video-player{position:relative;width:100%;overflow:hidden;background:#111;display:block}
+.video-player video{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+.video-player.is-fill{height:100%}
+.video-player.is-fill video{object-fit:contain;background:#000}
+.video-big-play{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;border:0;background:#0008;color:#fff;display:grid;place-items:center;backdrop-filter:blur(4px)}
+.video-controls{position:absolute;inset:auto 0 0 0;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:linear-gradient(transparent,#0007);pointer-events:none}
+.video-controls>span{display:inline-flex;gap:6px;pointer-events:auto}
+.video-controls button{width:32px;height:32px;border-radius:50%;border:0;background:#0009;color:#fff;display:grid;place-items:center}
+.video-duration{color:#fff;font-size:11px;font-weight:700;background:#0008;border-radius:10px;padding:3px 8px}
+
+/* ---------- Polls ---------- */
+.feed-poll{padding:4px 14px 2px}
+.poll-card{display:grid;gap:10px;border:1px solid var(--line);border-radius:14px;padding:14px;background:#fff;margin:12px 0}
+.feed-poll .poll-card{margin:6px 0}
+.poll-card h3{font:800 15px/1.4 Manrope,sans-serif;margin:0;color:#262b3b;overflow-wrap:anywhere}
+.poll-hint{margin:-4px 0 0;font-size:11px;color:#8a90a0}
+.poll-card ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.poll-option{width:100%;min-height:42px;border:1.5px solid #d9d5ff;background:#fff;color:#5145c5;border-radius:21px;padding:9px 14px;font-size:13px;font-weight:700;text-align:center;overflow-wrap:anywhere}
+.poll-option:hover:not(:disabled){background:#f6f5ff}
+.poll-option.is-selected{background:#6558d9;border-color:#6558d9;color:#fff}
+.poll-result{position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:40px;border-radius:10px;background:#f4f5f9;padding:8px 12px;overflow:hidden;font-size:13px;color:#363c4d}
+.poll-result i{position:absolute;inset:0 auto 0 0;background:#e6e3ff;border-radius:10px;transition:width .4s ease}
+.poll-result.is-mine i{background:#d4cfff}
+.poll-result span,.poll-result strong{position:relative;display:inline-flex;align-items:center;gap:6px;overflow-wrap:anywhere;min-width:0}
+.poll-result strong{font-weight:800;flex:none}
+.poll-submit{justify-self:start}
+.poll-card footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:11px;color:#8a90a0}
+.poll-card footer span{display:inline-flex;align-items:center;gap:4px}
+.poll-card footer .text-button{margin-left:auto}
+
+/* ---------- Composers ---------- */
+.home-composer-kinds{display:flex;align-items:center;gap:2px;flex:none}
+.home-composer-photo.is-video{color:#c2410c}
+.home-composer-photo.is-poll{color:#5145c5}
+.post-composer-stage video{width:100%;max-height:52vh;background:#000;display:block}
+.poll-composer{padding:14px 16px;gap:12px}
+.poll-composer label{display:grid;gap:6px;font-size:11px;font-weight:700;color:#5e6474}
+.poll-composer fieldset{border:0;padding:0;margin:0;display:grid;gap:8px}
+.poll-composer legend{font-size:11px;font-weight:700;color:#5e6474;margin-bottom:6px}
+.poll-composer-option{display:flex;gap:6px;align-items:center}
+.poll-composer-option input{flex:1;min-width:0}
+.poll-composer fieldset .text-button{justify-self:start}
+.poll-multi{align-items:center!important}
+@media (max-width:520px){
+  .home-composer-kinds span{display:none}
+  .home-composer-kinds{gap:0}
+}
+
+/* ---------- Reels ---------- */
+.reels-page{height:calc(100dvh - 70px);overflow-y:auto;scroll-snap-type:y mandatory;margin:-35px -42px -65px;background:#000;overscroll-behavior:contain}
+.reel{position:relative;height:calc(100dvh - 70px);scroll-snap-align:start;scroll-snap-stop:always;display:flex;justify-content:center;background:#000}
+.reel .video-player{max-width:min(100%,calc((100dvh - 70px) * .5625 + 120px))}
+.reel-overlay{position:absolute;inset:auto 0 0 0;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:18px 18px 70px;color:#fff;pointer-events:none;max-width:640px;margin:0 auto}
+.reel-info{min-width:0;pointer-events:auto;text-shadow:0 1px 3px #000a}
+.reel-author{font-weight:800;font-size:14px}
+.reel-info p{margin:6px 0 0;font-size:13px;line-height:1.5;max-height:4.5em;overflow:hidden}
+.reel-info a{color:#fff}
+.reel-error{color:#ffd3d3}
+.reel-actions{display:grid;gap:16px;pointer-events:auto}
+.reel-actions button,.reel-actions a{border:0;background:none;color:#fff;display:grid;justify-items:center;gap:3px;font-size:12px;font-weight:700;filter:drop-shadow(0 1px 3px #000a)}
+.reel-actions .is-liked{color:#ff3b5c}
+.reels-sentinel{height:1px}
+.reels-loading{color:#ccc;text-align:center;font-size:12px;padding:12px}
+@media (max-width:1120px){.reels-page{margin:-30px -27px -55px}}
+@media (max-width:820px){
+  .reels-page{margin:-24px -20px -45px;height:calc(100dvh - 62px)}
+  .reel{height:calc(100dvh - 62px)}
+  .reel .video-player{max-width:100%}
+}
+@media (max-width:560px){.reels-page{margin:-19px -14px -38px}}
