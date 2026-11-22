@@ -263,6 +263,38 @@ if REDIS_URL:
             "KEY_PREFIX": "commonground",
         }
     }
+elif os.getenv("CHANNEL_LAYER") == "postgres" and DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    # No Redis available: PostgreSQL does both jobs. The cache (WebSocket tickets,
+    # rate limits) is a table shared by every instance, and live events between
+    # instances use LISTEN/NOTIFY (channels_postgres: one listening connection per
+    # process, not per socket). Fine for small deployments; Redis scales further.
+    import copy
+
+    INSTALLED_APPS.append("channels_postgres")
+    _channels_db = copy.deepcopy(DATABASES["default"])
+    _channels_db.setdefault("OPTIONS", {}).pop("pool", None)
+    DATABASES["channels_postgres"] = {**_channels_db, "TEST": {"MIRROR": "default"}}
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_postgres.core.PostgresChannelLayer",
+            "CONFIG": {
+                # Django adds these defaults only to DATABASES entries; the layer
+                # builds its own connection from this dict and needs them too.
+                "TIME_ZONE": None, "CONN_MAX_AGE": 0, "CONN_HEALTH_CHECKS": False,
+                "AUTOCOMMIT": True, "ATOMIC_REQUESTS": False,
+                **copy.deepcopy(_channels_db),
+                "PSYCOPG_OPTIONS": {"min_size": 1, "max_size": int(os.getenv("CHANNELS_DB_POOL_MAX_SIZE", "2"))},
+                "group_expiry": 24 * 3600,
+            },
+        }
+    }
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "commonground_cache",
+            "KEY_PREFIX": "commonground",
+        }
+    }
 else:
     CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
     CACHES = {
@@ -345,6 +377,9 @@ PRODUCTION_REQUIRED_SETTINGS = (
     "DATABASE_URL",
     "REDIS_URL",
 )
+if os.getenv("CHANNEL_LAYER") == "postgres":
+    # PostgreSQL replaces Redis for the shared cache and live events.
+    PRODUCTION_REQUIRED_SETTINGS = tuple(name for name in PRODUCTION_REQUIRED_SETTINGS if name != "REDIS_URL")
 if DJANGO_ENV == "production":
     missing = [name for name in PRODUCTION_REQUIRED_SETTINGS if not os.getenv(name, "").strip()]
     if missing:

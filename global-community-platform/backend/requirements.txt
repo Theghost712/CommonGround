@@ -13,3 +13,4 @@ gunicorn>=23,<24
 uvicorn[standard]>=0.32,<1
 whitenoise>=6.8,<7
 django-storages[s3]>=1.14,<2
+channels-postgres>=1.1.4,<2
