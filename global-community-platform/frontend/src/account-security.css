@@ -39,3 +39,4 @@
   .verify-banner{padding:10px 16px}
   .security-page .form-grid{grid-template-columns:1fr}
 }
+.auth-invite{display:flex;align-items:center;gap:8px;background:#f0efff;color:#4338b8;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:14px}

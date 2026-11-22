@@ -200,3 +200,26 @@ a.avatar-small{color:#5f52ca}
 .tag-badge{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;color:#fff;background:conic-gradient(from 210deg,#f7b267,#f25c78,#b04fd8,#6558d9,#f7b267)}
 .tag-header h1{font:800 26px Manrope,sans-serif;margin:0}
 .tag-header p{margin:4px 0 0;color:#7c8394;font-size:13px}
+
+/* ---------- Invites ---------- */
+.invite-card{background:linear-gradient(140deg,#5145c5,#6c60d8 70%,#7b70e2);color:#fff;border-radius:16px;padding:20px;display:grid;gap:14px}
+.invite-card .eyebrow{color:#d6d2ff}
+.invite-card h2{font:800 19px Manrope,sans-serif;letter-spacing:-.4px;margin:6px 0 4px}
+.invite-card p{margin:0;font-size:12px;line-height:1.6;color:#e6e3ff}
+.invite-link-row code{display:block;background:#ffffff1f;border:1px solid #ffffff33;border-radius:10px;padding:10px 12px;font-size:12px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.invite-actions{display:flex;gap:8px;flex-wrap:wrap}
+.invite-card .button-primary{background:#fff;color:#4338b8;box-shadow:none}
+.invite-card .button-outline{background:transparent;color:#fff;border-color:#ffffff66}
+.invite-card .button-outline:hover{background:#ffffff1a}
+.invite-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.invite-row{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 12px;min-width:0}
+.invite-avatar{background:#f1f2f6;color:#6b7183}
+.invite-row-text{display:grid;gap:2px;min-width:0;flex:1}
+.invite-row-text strong{font-size:13px;color:#2d3243;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.invite-row-text small{font-size:11px;color:#8a90a0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.invite-row-actions{display:flex;gap:6px;flex:none}
+.invite-row-actions .follow-button{display:inline-flex;align-items:center;gap:5px}
+.invite-channel{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#f0efff;color:#5145c5}
+.invite-channel.is-whatsapp{background:#e7f8ee;color:#1f8f4e}
+.discover-tabs{margin-bottom:10px}
+.discover-more{justify-self:center;margin-top:10px}

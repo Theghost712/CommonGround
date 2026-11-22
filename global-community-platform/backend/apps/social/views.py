@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, transaction
 from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 from django.db.models.functions import Lower
@@ -17,13 +16,13 @@ from rest_framework.views import APIView
 from apps.accounts.models import UserProfile
 from apps.accounts.phone import normalize_phone, phone_hash
 from apps.discussions.views import visible_discussions
-from apps.notifications.services import notify_follow_accepted, notify_follow_request, notify_new_follower
+from apps.notifications.services import notify_follow_accepted
 from apps.safety.models import Block
 from apps.safety.services import is_blocked_between
 
 from .models import ConnectionLabel, ContactMatch, Follow, FollowRequest
 from .serializers import ContactMatchRequestSerializer, LabelSerializer, PersonSerializer, ProfileDetailSerializer
-from .services import people_queryset, relationship_map, search_people, suggestions_for
+from .services import discover_people, follow_user, people_queryset, relationship_map, search_people, suggestions_for
 
 User = get_user_model()
 
@@ -67,6 +66,16 @@ class PeopleSearchView(APIView):
         if len(query) < 2:
             return Response({"count": 0, "next": None, "previous": None, "results": []})
         return _people_response(self, request, search_people(request.user, query))
+
+
+class DiscoverView(APIView):
+    """GET /people/discover/?sort=popular|new: browse all members, paginated."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        sort = request.query_params.get("sort", "popular")
+        return _people_response(self, request, discover_people(request.user, "new" if sort == "new" else "popular"))
 
 
 class SuggestionsView(APIView):
@@ -144,21 +153,9 @@ class FollowView(APIView):
             raise ValidationError({"detail": "You cannot follow yourself."})
         if is_blocked_between(request.user, user):
             raise PermissionDenied("Unblock this account to follow it.")
-        if Follow.objects.filter(follower=request.user, following=user).exists():
-            return self._respond(request, user)
-        if getattr(getattr(user, "profile", None), "is_private", False):
-            follow_request, created = FollowRequest.objects.get_or_create(requester=request.user, target=user)
-            if created:
-                notify_follow_request(follow_request)
-            return self._respond(request, user, status.HTTP_202_ACCEPTED)
-        try:
-            with transaction.atomic():
-                follow, created = Follow.objects.get_or_create(follower=request.user, following=user)
-        except IntegrityError:
-            created = False
-        if created:
-            notify_new_follower(follow)
-        return self._respond(request, user, status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        outcome = follow_user(request.user, user)
+        code = {"requested": status.HTTP_202_ACCEPTED, "followed": status.HTTP_201_CREATED}.get(outcome, status.HTTP_200_OK)
+        return self._respond(request, user, code)
 
     def delete(self, request, username):
         user = _target(username)
@@ -240,17 +237,36 @@ class ContactMatchView(APIView):
     def post(self, request):
         serializer = ContactMatchRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        hashes = {phone_hash(n) for n in (normalize_phone(raw) for raw in serializer.validated_data["phones"]) if n}
-        emails = {email.strip().lower() for email in serializer.validated_data["emails"] if "@" in email}
+        def phone_hashes(raw_numbers):
+            return {phone_hash(n) for n in (normalize_phone(raw) for raw in raw_numbers) if n}
+
+        def clean_emails(raw_emails):
+            return {email.strip().lower() for email in raw_emails if "@" in email}
+
+        hashes = phone_hashes(serializer.validated_data["phones"])
+        emails = clean_emails(serializer.validated_data["emails"])
 
         discoverable = UserProfile.objects.filter(discoverable_by_contacts=True, user__is_active=True).exclude(user=request.user)
-        matched_ids = set()
+        from apps.safety.services import blocked_user_ids
+
+        blocked = blocked_user_ids(request.user)
+        by_hash, by_email = {}, {}
         if hashes:
-            matched_ids |= set(discoverable.filter(phone_hash__in=hashes).values_list("user_id", flat=True))
+            by_hash = dict(discoverable.filter(phone_hash__in=hashes).values_list("phone_hash", "user_id"))
         if emails:
-            matched_ids |= set(
-                discoverable.annotate(email_lower=Lower("user__email")).filter(email_lower__in=emails).values_list("user_id", flat=True)
+            by_email = dict(
+                discoverable.annotate(email_lower=Lower("user__email")).filter(email_lower__in=emails).values_list("email_lower", "user_id")
             )
+        by_hash = {h: uid for h, uid in by_hash.items() if uid not in blocked}
+        by_email = {e: uid for e, uid in by_email.items() if uid not in blocked}
+        matched_ids = set(by_hash.values()) | set(by_email.values())
+        # Per picked contact: which member it is, if any (else the app offers "Invite").
+        per_contact = []
+        for contact in serializer.validated_data["contacts"]:
+            member = next((by_hash[h] for h in phone_hashes(contact["phones"]) if h in by_hash), None)
+            if member is None:
+                member = next((by_email[e] for e in clean_emails(contact["emails"]) if e in by_email), None)
+            per_contact.append({"key": contact["key"], "user_id": member})
         for user_id in matched_ids:
             ContactMatch.objects.update_or_create(owner=request.user, target_id=user_id)
 
@@ -259,4 +275,5 @@ class ContactMatchView(APIView):
         return Response({
             "checked": len(hashes) + len(emails),
             "matches": PersonSerializer(users, many=True, context=context).data,
+            "contacts": per_contact,
         })

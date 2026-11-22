@@ -133,5 +133,61 @@ def suggestions_for(viewer, limit=12):
         add(membership.user_id, f"Also in {membership.community.name}", 10)
 
     ranked = sorted(reasons.items(), key=lambda item: -item[1][1])[:limit]
+    # New members have no contacts, followers or communities yet: like Instagram and
+    # Facebook, fill the rest with popular and recently joined members instead of an
+    # empty list.
+    if len(ranked) < limit:
+        taken = excluded | {pk for pk, _ in ranked}
+        room = limit - len(ranked)
+        popular = list(discover_people(viewer, "popular").exclude(pk__in=taken).filter(followers_total__gt=0).values_list("pk", flat=True)[:room])
+        ranked += [(pk, ("Popular on CommonGround", 0)) for pk in popular]
+        room -= len(popular)
+        if room > 0:
+            taken |= set(popular)
+            newest = list(discover_people(viewer, "new").exclude(pk__in=taken).values_list("pk", flat=True)[:room])
+            ranked += [(pk, ("New to CommonGround", 0)) for pk in newest]
     users = {user.pk: user for user in people_queryset().filter(pk__in=[pk for pk, _ in ranked])}
     return [(users[pk], reason) for pk, (reason, _) in ranked if pk in users]
+
+
+def discover_people(viewer, sort="popular"):
+    """Every active member the viewer may see, for browsing (like Instagram's
+    Discover people): blocked accounts and the viewer are left out; private
+    accounts appear, but their posts stay locked until they approve a follow."""
+    from apps.safety.services import blocked_user_ids
+
+    qs = people_queryset().exclude(pk=viewer.pk)
+    blocked = blocked_user_ids(viewer)
+    if blocked:
+        qs = qs.exclude(pk__in=blocked)
+    if sort == "new":
+        return qs.order_by("-date_joined", "-pk")
+    return qs.order_by("-followers_total", "-date_joined", "-pk")
+
+
+def follow_user(follower, target):
+    """Follow `target`, or send a follow request if the account is private.
+
+    Returns "followed", "requested" or "already". Notifications are sent here so
+    every way of following behaves the same (button, invite links).
+    """
+    from django.db import IntegrityError, transaction
+
+    from apps.notifications.services import notify_follow_request, notify_new_follower
+
+    if Follow.objects.filter(follower=follower, following=target).exists():
+        return "already"
+    if getattr(getattr(target, "profile", None), "is_private", False):
+        follow_request, created = FollowRequest.objects.get_or_create(requester=follower, target=target)
+        if created:
+            notify_follow_request(follow_request)
+        return "requested"
+    try:
+        with transaction.atomic():
+            follow, created = Follow.objects.get_or_create(follower=follower, following=target)
+    except IntegrityError:
+        return "already"
+    if created:
+        notify_new_follower(follow)
+        return "followed"
+    return "already"

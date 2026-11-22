@@ -30,16 +30,18 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
+    # Username of the member whose invite link brought this person here (optional).
+    invited_by = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=150)
 
     class Meta:
         model = User
         fields = [
             "id", "username", "email", "first_name", "last_name",
-            "password", "password_confirm",
+            "password", "password_confirm", "invited_by",
         ]
         read_only_fields = ["id"]
 
-    RESERVED_USERNAMES = {"suggestions", "contacts", "stories", "requests", "me", "admin", "api"}
+    RESERVED_USERNAMES = {"suggestions", "contacts", "stories", "requests", "discover", "invite", "me", "admin", "api"}
 
     def validate_username(self, value):
         if value.lower() in self.RESERVED_USERNAMES:
@@ -60,6 +62,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        invited_by = validated_data.pop("invited_by", "").strip().lstrip("@")
         password = validated_data.pop("password")
         user = User(**validated_data)
         user.set_password(password)
@@ -68,6 +71,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         from .security import send_verification_email
 
         send_verification_email(user)
+        if invited_by:
+            from apps.social.invites import welcome_invited_user
+
+            welcome_invited_user(user, invited_by)
         return user
 
 

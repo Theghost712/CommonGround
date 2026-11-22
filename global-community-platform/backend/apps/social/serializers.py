@@ -74,13 +74,26 @@ class LabelSerializer(serializers.Serializer):
     label = serializers.ChoiceField(choices=ConnectionLabel.LABEL_CHOICES)
 
 
+class PickedContactSerializer(serializers.Serializer):
+    """One contact from the phone's contact picker: matched as a unit, so the app can
+    show "Follow" for members and "Invite" for everyone else."""
+
+    key = serializers.CharField(max_length=64)
+    phones = serializers.ListField(child=serializers.CharField(max_length=40), required=False, default=list, max_length=10)
+    emails = serializers.ListField(child=serializers.CharField(max_length=254), required=False, default=list, max_length=10)
+
+
 class ContactMatchRequestSerializer(serializers.Serializer):
     MAX_ENTRIES = 2000
 
     phones = serializers.ListField(child=serializers.CharField(max_length=40), required=False, default=list)
     emails = serializers.ListField(child=serializers.CharField(max_length=254), required=False, default=list)
+    contacts = PickedContactSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
+        for contact in attrs["contacts"]:
+            attrs["phones"] = [*attrs["phones"], *contact["phones"]]
+            attrs["emails"] = [*attrs["emails"], *contact["emails"]]
         total = len(attrs["phones"]) + len(attrs["emails"])
         if total == 0:
             raise serializers.ValidationError("Send at least one phone number or email address.")

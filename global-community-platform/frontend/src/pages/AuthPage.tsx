@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowRight, UserPlus } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
+import '../account-security.css'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../services/api'
 
@@ -9,6 +10,9 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const isRegister = mode === 'register'
   const { login, register } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  // Arrived through a friend's invite link (…/register?invite=username).
+  const invitedBy = isRegister ? (params.get('invite') || '').trim().replace(/^@/, '').slice(0, 150) : ''
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ username: '', email: '', first_name: '', last_name: '', password: '', password_confirm: '' })
@@ -17,7 +21,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError('')
     try {
-      if (isRegister) await register(form)
+      if (isRegister) await register(invitedBy ? { ...form, invited_by: invitedBy } : form)
       else await login(form.username, form.password)
       navigate('/home')
     } catch (err) { setError(getErrorMessage(err)) }
@@ -25,6 +29,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   }
 
   return <AuthShell eyebrow="YOUR COMMUNITY STARTS HERE" title={isRegister ? 'Create your account' : 'Welcome back'} subtitle={isRegister ? 'Join the conversation. There is a place for your voice.' : 'Sign in to pick up where the conversation left off.'}>
+      {invitedBy && <div className="auth-invite" role="note"><UserPlus size={15} /> <span><strong>@{invitedBy}</strong> invited you. You'll follow each other when you join.</span></div>}
       <form onSubmit={submit} className="auth-form">
         {isRegister && <div className="form-grid"><label>First name<input required value={form.first_name} onChange={(e) => update('first_name', e.target.value)} placeholder="Your first name" /></label><label>Last name<input value={form.last_name} onChange={(e) => update('last_name', e.target.value)} placeholder="Your last name" /></label></div>}
         <label>Username<input required autoComplete="username" value={form.username} onChange={(e) => update('username', e.target.value)} placeholder="e.g. alexm" /></label>

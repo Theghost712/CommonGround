@@ -1,63 +1,111 @@
-/** Reading contacts from the device, a .vcf file, or pasted text. Nothing here is stored. */
+/**
+ * Reading contacts from the phone's contact picker, a .vcf file, or pasted text.
+ * Each contact keeps its name, numbers and emails together, so the app can show
+ * "Follow" for people already here and "Invite" for everyone else. Nothing here is
+ * stored; the server forgets the numbers after matching.
+ */
 
-type PickedContact = { tel?: string[]; email?: string[] }
-type ContactsManager = { select: (properties: string[], options?: { multiple?: boolean }) => Promise<PickedContact[]> }
+type PickedContact = { name?: string[]; tel?: string[]; email?: string[] }
+type ContactsManager = {
+  select: (properties: string[], options?: { multiple?: boolean }) => Promise<PickedContact[]>
+  getProperties?: () => Promise<string[]>
+}
 
-export type ContactBatch = { phones: string[]; emails: string[] }
+export type Contact = { key: string; name: string; phones: string[]; emails: string[] }
 
-/** The Contact Picker API exists only in Chrome on Android, on HTTPS (or localhost). */
+/**
+ * The Contact Picker opens the phone's own contact list and the person ticks who to
+ * share. Browsers never let a website read contacts silently; this exists only in
+ * Chrome on Android, on HTTPS.
+ */
 export function contactPickerSupported(): boolean {
   return typeof navigator !== 'undefined' && 'contacts' in navigator && typeof window !== 'undefined' && 'ContactsManager' in window && window.isSecureContext
 }
 
-export async function pickDeviceContacts(): Promise<ContactBatch> {
+let counter = 0
+const nextKey = () => `c${Date.now().toString(36)}${(counter++).toString(36)}`
+
+function clean(contact: Omit<Contact, 'key'>): Contact | null {
+  const phones = [...new Set(contact.phones.map((p) => p.trim()).filter((p) => /\d{6,}/.test(p.replace(/\D/g, ''))))]
+  const emails = [...new Set(contact.emails.map((e) => e.trim().toLowerCase()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))]
+  if (!phones.length && !emails.length) return null
+  return { key: nextKey(), name: contact.name.trim(), phones, emails }
+}
+
+export async function pickDeviceContacts(): Promise<Contact[]> {
   const manager = (navigator as Navigator & { contacts: ContactsManager }).contacts
-  const picked = await manager.select(['tel', 'email'], { multiple: true })
-  return dedupe({
-    phones: picked.flatMap((contact) => contact.tel || []),
-    emails: picked.flatMap((contact) => contact.email || []),
-  })
+  const supported = (await manager.getProperties?.()) ?? ['name', 'tel', 'email']
+  const wanted = ['name', 'tel', 'email'].filter((p) => supported.includes(p))
+  const picked = await manager.select(wanted, { multiple: true })
+  return picked.map((c) => clean({ name: c.name?.[0] ?? '', phones: c.tel ?? [], emails: c.email ?? [] })).filter((c): c is Contact => c !== null)
 }
 
-/** Parse TEL and EMAIL lines from vCard (.vcf) text, including folded lines. */
-export function parseVCard(text: string): ContactBatch {
+/** Parse vCard (.vcf) text into contacts: FN/N for the name, TEL and EMAIL lines. */
+export function parseVCard(text: string): Contact[] {
   const unfolded = text.replace(/\r\n|\r/g, '\n').replace(/\n[ \t]/g, '')
-  const phones: string[] = []
-  const emails: string[] = []
-  for (const line of unfolded.split('\n')) {
-    const match = /^(?:item\d+\.)?(TEL|EMAIL)\b[^:]*:(.+)$/i.exec(line.trim())
+  const contacts: Contact[] = []
+  let current: Omit<Contact, 'key'> | null = null
+  for (const raw of unfolded.split('\n')) {
+    const line = raw.trim()
+    if (/^BEGIN:VCARD$/i.test(line)) { current = { name: '', phones: [], emails: [] }; continue }
+    if (/^END:VCARD$/i.test(line)) { const done = current && clean(current); if (done) contacts.push(done); current = null; continue }
+    if (!current) continue
+    const match = /^(?:item\d+\.)?(FN|N|TEL|EMAIL)\b[^:]*:(.+)$/i.exec(line)
     if (!match) continue
+    const field = match[1].toUpperCase()
     const value = match[2].replace(/^tel:/i, '').replace(/^mailto:/i, '').trim()
-    if (match[1].toUpperCase() === 'TEL') phones.push(value)
-    else emails.push(value)
+    if (field === 'FN') current.name = value
+    else if (field === 'N' && !current.name) current.name = value.split(';').filter(Boolean).reverse().join(' ')
+    else if (field === 'TEL') current.phones.push(value)
+    else if (field === 'EMAIL') current.emails.push(value)
   }
-  return dedupe({ phones, emails })
+  return contacts
 }
 
-/** Split pasted text on commas, semicolons or new lines into phones and emails. */
-export function parsePasted(text: string): ContactBatch {
-  const parts = text.split(/[\n,;]+/).map((part) => part.trim()).filter(Boolean)
-  return dedupe({
-    phones: parts.filter((part) => !part.includes('@') && /\d{6,}/.test(part.replace(/\D/g, ''))),
-    emails: parts.filter((part) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(part)),
-  })
+/** Each pasted entry (split on commas, semicolons or new lines) becomes one contact. */
+export function parsePasted(text: string): Contact[] {
+  return text.split(/[\n,;]+/).map((part) => part.trim()).filter(Boolean)
+    .map((part) => clean(part.includes('@') ? { name: '', phones: [], emails: [part] } : { name: '', phones: [part], emails: [] }))
+    .filter((c): c is Contact => c !== null)
 }
 
-function dedupe(batch: ContactBatch): ContactBatch {
-  return {
-    phones: [...new Set(batch.phones.map((p) => p.trim()).filter(Boolean))],
-    emails: [...new Set(batch.emails.map((e) => e.trim().toLowerCase()).filter(Boolean))],
-  }
+export const MAX_CONTACTS_PER_REQUEST = 400
+
+export function chunk(contacts: Contact[], size = MAX_CONTACTS_PER_REQUEST): Contact[][] {
+  const parts: Contact[][] = []
+  for (let i = 0; i < contacts.length; i += size) parts.push(contacts.slice(i, i + size))
+  return parts
 }
 
-export const MAX_CONTACTS_PER_REQUEST = 2000
+// ---------------------------------------------------------------- invites
 
-export function chunk(batch: ContactBatch): ContactBatch[] {
-  const items = [...batch.phones.map((v) => ['p', v] as const), ...batch.emails.map((v) => ['e', v] as const)]
-  const chunks: ContactBatch[] = []
-  for (let i = 0; i < items.length; i += MAX_CONTACTS_PER_REQUEST) {
-    const slice = items.slice(i, i + MAX_CONTACTS_PER_REQUEST)
-    chunks.push({ phones: slice.filter(([k]) => k === 'p').map(([, v]) => v), emails: slice.filter(([k]) => k === 'e').map(([, v]) => v) })
-  }
-  return chunks
+export function inviteLink(username: string, origin = window.location.origin): string {
+  return `${origin}/register?invite=${encodeURIComponent(username)}`
+}
+
+export function inviteMessage(username: string, name = ''): string {
+  const greeting = name ? `Hi ${name.split(' ')[0]}! ` : 'Hi! '
+  return `${greeting}I'm on CommonGround, a place for communities and good conversations. Join me: ${inviteLink(username)}`
+}
+
+/** Digits with country code for wa.me (local 0712… numbers are treated as Tanzanian). */
+export function internationalDigits(phone: string, countryCode = '255'): string {
+  const digits = phone.replace(/\D/g, '')
+  if (phone.trim().startsWith('+')) return digits
+  if (digits.startsWith('00')) return digits.slice(2)
+  if (digits.startsWith('0')) return countryCode + digits.slice(1)
+  return digits
+}
+
+export function whatsappUrl(phone: string, message: string): string {
+  return `https://wa.me/${internationalDigits(phone)}?text=${encodeURIComponent(message)}`
+}
+
+export function smsUrl(phone: string, message: string): string {
+  // "?&body=" works on both Android and iOS.
+  return `sms:${phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(message)}`
+}
+
+export function emailUrl(email: string, message: string): string {
+  return `mailto:${email}?subject=${encodeURIComponent('Join me on CommonGround')}&body=${encodeURIComponent(message)}`
 }

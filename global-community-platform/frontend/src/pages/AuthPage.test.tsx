@@ -10,14 +10,14 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: null, loading: false, logout: vi.fn(), ...auth }),
 }))
 
-function renderAuth(mode: 'login' | 'register') {
+function renderAuth(mode: 'login' | 'register', query = '') {
   return renderWithProviders(
     <Routes>
       <Route path="/login" element={<AuthPage mode={mode} />} />
       <Route path="/register" element={<AuthPage mode={mode} />} />
       <Route path="/home" element={<h1>Home feed</h1>} />
     </Routes>,
-    { route: `/${mode}` },
+    { route: `/${mode}${query}` },
   )
 }
 
@@ -87,6 +87,20 @@ describe('AuthPage', () => {
       password: 'Strong-password-123',
       password_confirm: 'Strong-password-123',
     }))
+  })
+
+  it('joins through an invite link and tells the server who invited them', async () => {
+    auth.register.mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderAuth('register', '?invite=Mr.Paulo')
+    expect(screen.getByRole('note')).toHaveTextContent("@Mr.Paulo invited you. You'll follow each other when you join.")
+    await user.type(screen.getByLabelText('First name'), 'Neema')
+    await user.type(screen.getByLabelText('Username'), 'neema')
+    await user.type(screen.getByLabelText('Email address'), 'neema@example.test')
+    await user.type(screen.getByLabelText('Password'), 'Strong-password-123')
+    await user.type(screen.getByLabelText('Confirm password'), 'Strong-password-123')
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+    await waitFor(() => expect(auth.register).toHaveBeenCalledWith(expect.objectContaining({ username: 'neema', invited_by: 'Mr.Paulo' })))
   })
 
   it('links between login and register', () => {
