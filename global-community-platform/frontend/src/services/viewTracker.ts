@@ -48,13 +48,22 @@ export function trackVisibility(node: Element, id: number) {
   if (typeof IntersectionObserver === 'undefined') return () => {}
   let since = 0
   let total = 0
+  let dwell: ReturnType<typeof setTimeout> | null = null
   const observer = new IntersectionObserver(([entry]) => {
-    if (entry.isIntersecting && entry.intersectionRatio >= 0.6) since = performance.now()
-    else if (since) { total += performance.now() - since; since = 0; if (total >= 1000) recordView(id, total) }
+    if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+      if (!since) since = performance.now()
+      // Count the view after one second on screen, even if it never scrolls away.
+      if (!dwell) dwell = setTimeout(() => { dwell = null; if (since) recordView(id, total + performance.now() - since) }, 1000)
+    } else if (since) {
+      if (dwell) { clearTimeout(dwell); dwell = null }
+      total += performance.now() - since; since = 0
+      if (total >= 1000) recordView(id, total)
+    }
   }, { threshold: [0, 0.6, 1] })
   observer.observe(node)
   return () => {
     observer.disconnect()
+    if (dwell) clearTimeout(dwell)
     if (since) { total += performance.now() - since; if (total >= 1000) recordView(id, total) }
   }
 }
