@@ -369,8 +369,10 @@ WEBRTC_STUN_URLS = env_list("WEBRTC_STUN_URLS", "stun:stun.l.google.com:19302")
 TURN_URLS = env_list("TURN_URLS", "")
 TURN_SECRET = os.getenv("TURN_SECRET", "")
 # Hosted TURN services (e.g. Metered's free Open Relay) give a fixed username/credential instead.
-TURN_USERNAME = os.getenv("TURN_USERNAME", "")
-TURN_CREDENTIAL = os.getenv("TURN_CREDENTIAL", "")
+# (The alternative spellings match variables already saved as Sensitive in Vercel,
+# which can't be renamed there.)
+TURN_USERNAME = os.getenv("TURN_USERNAME") or os.getenv("TURNS_USERNAME", "")
+TURN_CREDENTIAL = os.getenv("TURN_CREDENTIAL") or os.getenv("TURN_CRIDENTIAL", "")
 TURN_CREDENTIAL_TTL = int(os.getenv("TURN_CREDENTIAL_TTL", str(6 * 3600)))
 
 # Country code assumed for local phone numbers ("0712…") when matching contacts.
