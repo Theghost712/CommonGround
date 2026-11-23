@@ -45,6 +45,8 @@ class StorySerializer(serializers.ModelSerializer):
 class StoryCreateSerializer(serializers.Serializer):
     media_type = serializers.ChoiceField(choices=Story.MEDIA_TYPES)
     file = serializers.FileField(required=False)
+    # Alternative to `file`: a key from /uploads/ (uploaded straight to storage).
+    file_key = serializers.CharField(required=False, allow_blank=True, max_length=300)
     thumbnail = serializers.FileField(required=False)
     text = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     background = serializers.ChoiceField(choices=[(b, b) for b in Story.BACKGROUNDS], required=False, default="violet")
@@ -54,7 +56,7 @@ class StoryCreateSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         kind = attrs["media_type"]
-        if kind in (Story.IMAGE, Story.VIDEO) and not attrs.get("file"):
+        if kind in (Story.IMAGE, Story.VIDEO) and not attrs.get("file") and not attrs.get("file_key"):
             raise serializers.ValidationError({"file": "Choose a photo or video."})
         if kind == Story.TEXT and not attrs.get("text", "").strip():
             raise serializers.ValidationError({"text": "Write something for your story."})

@@ -19,7 +19,8 @@ def content_security_policy():
         "font-src 'self' https://fonts.gstatic.com",
         f"img-src {images}",
         f"media-src {media}",
-        "connect-src 'self'",  # same-origin API and WebSockets (wss: included by 'self')
+        # Same-origin API and WebSockets, plus direct uploads to object storage.
+        f"connect-src {' '.join(["'self'", *settings.CSP_MEDIA_ORIGINS])}",
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",

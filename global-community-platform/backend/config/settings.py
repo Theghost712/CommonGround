@@ -175,6 +175,8 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "").strip()
 SUPABASE_URL_EXPIRE = int(os.getenv("SUPABASE_URL_EXPIRE", "3600"))
 USE_S3 = bool(S3_BUCKET and os.getenv("S3_ACCESS_KEY_ID", "").strip())
+# Largest video for direct-to-storage uploads (Supabase's free plan caps files at 50 MB).
+DIRECT_UPLOAD_MAX_VIDEO_MB = int(os.getenv("DIRECT_UPLOAD_MAX_VIDEO_MB", "50"))
 USE_SUPABASE_STORAGE = bool(not USE_S3 and SUPABASE_STORAGE_BUCKET and SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
 if USE_SUPABASE_STORAGE:
     STORAGES = {
@@ -352,6 +354,9 @@ EMAIL_LINK_MAX_AGE_SECONDS = int(os.getenv("EMAIL_LINK_MAX_AGE_SECONDS", str(3 *
 WEBRTC_STUN_URLS = env_list("WEBRTC_STUN_URLS", "stun:stun.l.google.com:19302")
 TURN_URLS = env_list("TURN_URLS", "")
 TURN_SECRET = os.getenv("TURN_SECRET", "")
+# Hosted TURN services (e.g. Metered's free Open Relay) give a fixed username/credential instead.
+TURN_USERNAME = os.getenv("TURN_USERNAME", "")
+TURN_CREDENTIAL = os.getenv("TURN_CREDENTIAL", "")
 TURN_CREDENTIAL_TTL = int(os.getenv("TURN_CREDENTIAL_TTL", str(6 * 3600)))
 
 # Country code assumed for local phone numbers ("0712…") when matching contacts.

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EyeOff, ImagePlus, Lock, Search, Type, Users, X } from 'lucide-react'
 import { api, getErrorMessage } from '../services/api'
+import { getUploadConfig, uploadDirect } from '../services/uploads'
 import type { Paginated, Person, StoryBackground } from '../types'
 import { Avatar } from './PersonBits'
 
@@ -147,7 +148,9 @@ export default function StoryComposer({ onClose }: { onClose: () => void }) {
       } else {
         if (!file) throw new Error('Choose a photo or video first.')
         form.append('media_type', video ? 'video' : 'image')
-        form.append('file', file)
+        const config = await getUploadConfig()
+        if (config.direct) form.append('file_key', await uploadDirect(file, video ? 'story-video' : 'story-photo', (part) => setProgress(part * 0.95)))
+        else form.append('file', file)
         if (text.trim()) form.append('text', text.trim())
         if (altText.trim()) form.append('alt_text', altText.trim())
         if (video) {
@@ -157,7 +160,7 @@ export default function StoryComposer({ onClose }: { onClose: () => void }) {
       }
       return api.post('/stories/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (event) => { if (event.total) setProgress(event.loaded / event.total) },
+        onUploadProgress: (event) => { const total = event.total; if (total) setProgress((current) => Math.max(current, event.loaded / total)) },
       })
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['story-tray'] }); onClose() },

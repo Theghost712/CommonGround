@@ -94,6 +94,8 @@ def ice_servers(user):
         username = f"{expires}:{user.pk}"
         digest = hmac.new(settings.TURN_SECRET.encode(), username.encode(), hashlib.sha1).digest()
         servers.append({"urls": settings.TURN_URLS, "username": username, "credential": base64.b64encode(digest).decode()})
+    elif settings.TURN_URLS and settings.TURN_USERNAME and settings.TURN_CREDENTIAL:
+        servers.append({"urls": settings.TURN_URLS, "username": settings.TURN_USERNAME, "credential": settings.TURN_CREDENTIAL})
     return servers
 
 

@@ -78,8 +78,19 @@ class PostCreateView(APIView):
 
     def post(self, request):
         images = request.FILES.getlist("images")
-        alt_texts = request.data.getlist("alt_texts") if hasattr(request.data, "getlist") else []
+        getlist = request.data.getlist if hasattr(request.data, "getlist") else (lambda key: request.data.get(key, []))
+        alt_texts = getlist("alt_texts")
+        image_keys = [key for key in getlist("image_keys") if key]  # photos uploaded straight to storage
         caption = str(request.data.get("caption", "")).strip()
+        if image_keys and len(image_keys) <= MAX_PHOTOS:
+            from apps.common.uploads import claim_upload
+
+            claimed = [claim_upload(request.user, key, "post-photo") for key in image_keys]
+            images = [*images, *(upload.download() for upload in claimed)]
+        else:
+            claimed = []
+        if len(image_keys) > MAX_PHOTOS:
+            raise ValidationError({"images": f"A post can have at most {MAX_PHOTOS} photos."})
         if not images:
             raise ValidationError({"images": "Add at least one photo."})
         if len(images) > MAX_PHOTOS:
@@ -105,7 +116,11 @@ class PostCreateView(APIView):
             for attachment in saved:  # the transaction rolled back the rows; remove the files too
                 for field in (attachment.file, attachment.display, attachment.thumbnail):
                     field.delete(save=False)
+            for upload in claimed:
+                upload.discard()
             raise
+        for upload in claimed:  # the optimised copies are stored; the originals go
+            upload.discard()
         notify_mentions(discussion, request.user)
         return Response(reload_post(discussion, request), status=status.HTTP_201_CREATED)
 
@@ -125,6 +140,11 @@ class VideoPostCreateView(APIView):
 
     def post(self, request):
         video = request.FILES.get("video")
+        claimed_video = None
+        if not video and request.data.get("video_key"):  # uploaded straight to storage
+            from apps.common.uploads import claim_upload
+
+            claimed_video = video = claim_upload(request.user, request.data.get("video_key"), "post-video")
         poster = request.FILES.get("poster")
         caption = str(request.data.get("caption", "")).strip()
         if not video:
@@ -142,9 +162,11 @@ class VideoPostCreateView(APIView):
         if duration_ms > MAX_VIDEO_SECONDS * 1000:
             raise ValidationError({"video": f"Videos can be up to {MAX_VIDEO_SECONDS // 60} minutes long."})
         try:
-            extension = check_video(video, MAX_POST_VIDEO_BYTES)
+            extension = check_video(video, MAX_POST_VIDEO_BYTES if claimed_video is None else video.size)
             display, thumb, (width, height) = process_image(poster, max_size=(1080, 1920), thumb_size=(480, 480))
         except MediaRejected as error:
+            if claimed_video is not None:
+                claimed_video.discard()
             raise ValidationError({"video": str(error)})
         from .images import dominant_color
 
@@ -162,7 +184,10 @@ class VideoPostCreateView(APIView):
                     content_type=VIDEO_TYPES[extension], size=video.size, width=width, height=height,
                     color=dominant_color(thumb), alt_text=str(request.data.get("alt_text", ""))[:300], duration_ms=duration_ms,
                 )
-                attachment.file.save(f"{uuid.uuid4().hex}.{extension}", video, save=False)
+                if claimed_video is not None:
+                    claimed_video.move_to(attachment.file, f"{uuid.uuid4().hex}.{extension}")
+                else:
+                    attachment.file.save(f"{uuid.uuid4().hex}.{extension}", video, save=False)
                 attachment.display.save(display.name, display, save=False)
                 attachment.thumbnail.save(thumb.name, thumb, save=False)
                 attachment.save()

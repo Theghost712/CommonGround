@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, ImagePlus, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api, getErrorMessage } from '../services/api'
+import { getUploadConfig, uploadDirect } from '../services/uploads'
 import type { Community, Discussion, Paginated } from '../types'
 import { DISCUSSION_TOPICS } from '../pages/CreateDiscussionPage'
 
@@ -95,14 +96,22 @@ export default function PostComposer({ onClose }: { onClose: () => void }) {
       if (!drafts.length) throw new Error('Add at least one photo.')
       const form = new FormData()
       const files = await Promise.all(drafts.map((d) => shrinkForUpload(d.file)))
-      files.forEach((file) => form.append('images', file))
+      const config = await getUploadConfig()
+      if (config.direct) {
+        // Straight to storage, one by one, so a 10-photo post isn't one huge request.
+        for (const [index, file] of files.entries()) {
+          form.append('image_keys', await uploadDirect(file, 'post-photo', (part) => setProgress((index + part) / files.length * 0.95)))
+        }
+      } else {
+        files.forEach((file) => form.append('images', file))
+      }
       drafts.forEach((d) => form.append('alt_texts', d.alt.trim()))
       form.append('caption', caption.trim())
       form.append('category', category)
       if (community) form.append('community', community)
       return (await api.post<Discussion>('/posts/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (event) => { if (event.total) setProgress(event.loaded / event.total) },
+        onUploadProgress: (event) => { const total = event.total; if (total) setProgress((current) => Math.max(current, event.loaded / total)) },
       })).data
     },
     onSuccess: (post) => {

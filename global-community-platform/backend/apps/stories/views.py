@@ -77,6 +77,13 @@ class StoryCreateView(APIView):
             author=request.user, media_type=data["media_type"], text=data["text"].strip(),
             background=data["background"], alt_text=data["alt_text"].strip(), audience=data["audience"],
         )
+        claimed = None
+        if data.get("file_key") and not data.get("file") and story.media_type in (Story.IMAGE, Story.VIDEO):
+            from apps.common.uploads import claim_upload
+
+            purpose = "story-photo" if story.media_type == Story.IMAGE else "story-video"
+            claimed = claim_upload(request.user, data["file_key"], purpose)
+            data["file"] = claimed.download() if story.media_type == Story.IMAGE else claimed
         try:
             if story.media_type == Story.IMAGE:
                 full, thumb, _ = process_image(data["file"])
@@ -84,9 +91,13 @@ class StoryCreateView(APIView):
                 story.thumbnail.save(thumb.name, thumb, save=False)
                 story.duration_ms = 5000
             elif story.media_type == Story.VIDEO:
-                extension = check_video(data["file"])
-                data["file"].name = f"clip.{extension}"
-                story.media.save(data["file"].name, data["file"], save=False)
+                if claimed is not None:
+                    extension = check_video(claimed, claimed.size)
+                    claimed.move_to(story.media, f"clip.{extension}")
+                else:
+                    extension = check_video(data["file"])
+                    data["file"].name = f"clip.{extension}"
+                    story.media.save(data["file"].name, data["file"], save=False)
                 story.duration_ms = data["duration_ms"]
                 if data.get("thumbnail"):
                     _, thumb, _ = process_image(data["thumbnail"])  # poster frame captured by the browser
@@ -96,7 +107,11 @@ class StoryCreateView(APIView):
             story.save()
         except MediaRejected as error:
             story.delete_files()
+            if claimed is not None:
+                claimed.discard()
             raise ValidationError({"file": str(error)})
+        if claimed is not None and story.media_type == Story.IMAGE:
+            claimed.discard()  # the processed copy is stored; drop the original
         return Response(_serialize(request, [story])[0], status=status.HTTP_201_CREATED)
 
 

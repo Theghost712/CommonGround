@@ -29,9 +29,12 @@ router.register("events", CommunityEventViewSet, basename="event")
 
 from apps.common.health import health
 from apps.common.spa import spa_index
+from apps.common.uploads import UploadConfigView, UploadRequestView
 
 urlpatterns = [
     path("api/v1/health/", health, name="health"),
+    path("api/v1/uploads/", UploadRequestView.as_view(), name="upload_request"),
+    path("api/v1/uploads/config/", UploadConfigView.as_view(), name="upload_config"),
     path("admin/", admin.site.urls),
     path("api/v1/auth/register/", RegisterView.as_view(), name="register"),
     path("api/v1/auth/csrf/", csrf_cookie, name="csrf_cookie"),

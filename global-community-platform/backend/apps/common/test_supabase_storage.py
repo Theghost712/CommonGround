@@ -35,10 +35,34 @@ class FakeSupabase(BaseHTTPRequestHandler):
     def _body(self):
         return self.rfile.read(int(self.headers.get("Content-Length") or 0))
 
+    uploads = {}  # one-time upload tokens → object name
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = unquote(parsed.path)
+        token = dict(part.split("=", 1) for part in parsed.query.split("&") if "=" in part).get("token")
+        name = path.removeprefix("/storage/v1/object/upload/sign/media/")
+        if self.uploads.get(token) != name:  # browsers don't send the API key here
+            return self._reply(403, b'{"error":"invalid token"}')
+        del self.uploads[token]
+        self.objects[name] = (self._body(), self.headers.get("Content-Type"))
+        self._reply(200, json.dumps({"Key": f"media/{name}"}).encode())
+
     def do_POST(self):
         if not self._authorized():
             return
         path = unquote(urlparse(self.path).path)
+        if path.startswith("/storage/v1/object/upload/sign/media/"):
+            name = path.removeprefix("/storage/v1/object/upload/sign/media/")
+            token = f"tok{len(self.uploads) + 1}"
+            self.uploads[token] = name
+            return self._reply(200, json.dumps({"url": f"/object/upload/sign/media/{name}?token={token}", "token": token}).encode())
+        if path == "/storage/v1/object/move":
+            body = json.loads(self._body())
+            if body["sourceKey"] not in self.objects:
+                return self._reply(400, b'{"error":"not_found"}')
+            self.objects[body["destinationKey"]] = self.objects.pop(body["sourceKey"])
+            return self._reply(200, b'{"message":"Successfully moved"}')
         if path.startswith("/storage/v1/object/sign/media/"):
             name = path.removeprefix("/storage/v1/object/sign/media/")
             if name not in self.objects:
@@ -66,6 +90,10 @@ class FakeSupabase(BaseHTTPRequestHandler):
         if name not in self.objects:
             return self._reply(400, b'{"statusCode":"404","error":"not_found"}')
         data, content_type = self.objects[name]
+        byte_range = self.headers.get("Range")
+        if byte_range:
+            start, end = (int(x) for x in byte_range.removeprefix("bytes=").split("-"))
+            return self._reply(206, data[start:end + 1], content_type or "application/octet-stream")
         self._reply(200, data, content_type or "application/octet-stream")
 
     def do_DELETE(self):

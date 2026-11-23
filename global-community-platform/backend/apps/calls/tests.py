@@ -109,6 +109,11 @@ class CallFlowTests(APITestCase):
         expected = base64.b64encode(hmac.new(b"s3cret", turn["username"].encode(), h.sha1).digest()).decode()
         self.assertEqual(turn["credential"], expected)
 
+    @override_settings(TURN_URLS=["turn:standard.relay.metered.ca:80", "turns:standard.relay.metered.ca:443"], TURN_SECRET="", TURN_USERNAME="u123", TURN_CREDENTIAL="c456")
+    def test_hosted_turn_with_fixed_credentials(self):
+        turn = ice_servers(self.amina)[-1]
+        self.assertEqual(turn, {"urls": ["turn:standard.relay.metered.ca:80", "turns:standard.relay.metered.ca:443"], "username": "u123", "credential": "c456"})
+
     def test_call_data_survives_the_redis_channel_layer_encoding(self):
         # channels_redis serialises events with msgpack, which rejects datetimes.
         import msgpack

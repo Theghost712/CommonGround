@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Clapperboard, ListChecks, Plus, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api, getErrorMessage } from '../services/api'
+import { getUploadConfig, uploadDirect, type UploadConfig } from '../services/uploads'
 import type { Community, Discussion, Paginated } from '../types'
 import { DISCUSSION_TOPICS } from '../pages/CreateDiscussionPage'
 import { inspectVideo } from './StoryComposer'
@@ -63,13 +64,17 @@ export function VideoComposer({ onClose }: { onClose: () => void }) {
   const [reading, setReading] = useState(false)
   const audience = useAudience()
   const published = usePublished(onClose)
+  const [limits, setLimits] = useState<UploadConfig | null>(null)
+  useEffect(() => { void getUploadConfig().then(setLimits) }, [])
+  // Direct uploads: the storage plan's limit. Otherwise the request goes through the app.
+  const maxMb = limits?.direct ? limits.max_video_mb : MAX_VIDEO_MB
   useEffect(() => () => { if (draft) URL.revokeObjectURL(draft.preview) }, [draft])
 
   const pick = async (file: File | undefined) => {
     setError('')
     if (!file) return
     if (!file.type.startsWith('video/')) { setError('Choose a video file (MP4, MOV or WebM).'); return }
-    if (file.size > MAX_VIDEO_MB * 1024 * 1024) { setError(`Videos can be up to ${MAX_VIDEO_MB} MB. This one is ${Math.round(file.size / 1024 / 1024)} MB.`); return }
+    if (file.size > maxMb * 1024 * 1024) { setError(`Videos can be up to ${maxMb} MB. This one is ${Math.round(file.size / 1024 / 1024)} MB.`); return }
     setReading(true)
     try {
       const info = await inspectVideo(file)
@@ -83,7 +88,9 @@ export function VideoComposer({ onClose }: { onClose: () => void }) {
     mutationFn: async () => {
       if (!draft) throw new Error('Choose a video.')
       const form = new FormData()
-      form.append('video', draft.file)
+      const config = await getUploadConfig()
+      if (config.direct) form.append('video_key', await uploadDirect(draft.file, 'post-video', (part) => setProgress(part * 0.95)))
+      else form.append('video', draft.file)
       form.append('poster', new File([draft.poster], 'poster.jpg', { type: 'image/jpeg' }))
       form.append('duration_ms', String(Math.round(draft.seconds * 1000)))
       form.append('caption', caption.trim())
@@ -92,7 +99,7 @@ export function VideoComposer({ onClose }: { onClose: () => void }) {
       if (audience.community) form.append('community', audience.community)
       return (await api.post<Discussion>('/posts/video/', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (event) => { if (event.total) setProgress(event.loaded / event.total) },
+        onUploadProgress: (event) => { const total = event.total; if (total) setProgress((current) => Math.max(current, event.loaded / total)) },
       })).data
     },
     onSuccess: published,
@@ -104,7 +111,7 @@ export function VideoComposer({ onClose }: { onClose: () => void }) {
       <div className="post-composer-stage">
         {draft
           ? <><video src={draft.preview} controls playsInline muted /><div className="post-composer-tools"><span>{formatDuration(draft.seconds * 1000)}</span><button type="button" aria-label="Remove video" onClick={() => setDraft(null)}><Trash2 size={16} /></button></div></>
-          : <button type="button" className="story-pick" disabled={reading} onClick={() => fileRef.current?.click()}><Clapperboard size={36} /><strong>{reading ? 'Reading video…' : 'Choose a video'}</strong><span>Up to {MAX_VIDEO_SECONDS / 60} minutes · {MAX_VIDEO_MB} MB · MP4, MOV or WebM</span></button>}
+          : <button type="button" className="story-pick" disabled={reading} onClick={() => fileRef.current?.click()}><Clapperboard size={36} /><strong>{reading ? 'Reading video…' : 'Choose a video'}</strong><span>Up to {MAX_VIDEO_SECONDS / 60} minutes · {maxMb} MB · MP4, MOV or WebM</span></button>}
         <input ref={fileRef} type="file" accept="video/mp4,video/quicktime,video/webm,video/*" hidden onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = '' }} aria-label="Post video" />
       </div>
       <div className="post-composer-fields">

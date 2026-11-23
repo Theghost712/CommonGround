@@ -111,6 +111,36 @@ class SupabaseStorage(Storage):
         signed = json.loads(body).get("signedURL") or json.loads(body).get("signedUrl")
         return self.base + signed if signed.startswith("/") else signed
 
+    # ------------------------------------------------------------ direct uploads
+    def create_upload_url(self, name):
+        """One-time URL the browser can PUT a file to (no API key in the browser)."""
+        status, _, body = self._request("POST", f"/object/upload/sign/{self.bucket}/{self._path(name)}", b"{}", {"Content-Type": "application/json"})
+        self._ensure(status, body, "Sign upload", name)
+        data = json.loads(body)
+        url = data.get("url") or data.get("signedURL") or ""
+        if url.startswith("/"):
+            url = self.base + url
+        if "token=" not in url and data.get("token"):
+            url += ("&" if "?" in url else "?") + f"token={data['token']}"
+        return url
+
+    def move(self, source, destination):
+        status, _, body = self._request(
+            "POST", "/object/move",
+            json.dumps({"bucketId": self.bucket, "sourceKey": source, "destinationKey": destination}).encode(),
+            {"Content-Type": "application/json"},
+        )
+        self._ensure(status, body, "Move", source)
+        return destination
+
+    def read_head(self, name, length=64):
+        """The first bytes of a stored file (to check its real type) without downloading it all."""
+        status, _, body = self._request("GET", f"/object/{self.bucket}/{self._path(name)}", headers={"Range": f"bytes=0-{length - 1}"})
+        if status in (400, 404):
+            raise FileNotFoundError(name)
+        self._ensure(status, body, "Read", name)
+        return body[:length]
+
     def check(self):
         """Cheap health probe: can we see the bucket?"""
         status, _, _ = self._request("GET", f"/bucket/{self.bucket}")
