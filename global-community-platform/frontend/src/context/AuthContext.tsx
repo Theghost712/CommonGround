@@ -1,11 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, ensureCsrfToken, refreshAccessToken, setAccessToken } from '../services/api'
+import { forgetPushOnSignOut } from '../services/push'
 
-export type User = { id: number; username: string; email: string; email_verified: boolean; can_moderate?: boolean; is_staff?: boolean; first_name: string; last_name: string }
+export type User = { id: number; username: string; email: string; email_verified: boolean; two_factor_enabled?: boolean; can_moderate?: boolean; is_staff?: boolean; first_name: string; last_name: string }
 type AuthValue = {
   user: User | null
   loading: boolean
-  login: (username: string, password: string) => Promise<void>
+  /** Resolves to a challenge when the account needs a second step (authenticator code). */
+  login: (username: string, password: string) => Promise<TwoFactorChallenge | null>
+  /** Second sign-in step: a 6-digit app code or a recovery code. */
+  completeTwoFactor: (challenge: string, code: string) => Promise<{ recovery_codes_left?: number }>
   register: (data: Record<string, string>) => Promise<void>
   logout: () => Promise<void>
   /** Re-read /auth/me/ (after email verification, for example). */
@@ -13,6 +17,9 @@ type AuthValue = {
   /** Use a new access token the server issued (password change); null signs out locally. */
   applySession: (access: string | null) => Promise<void>
 }
+export type TwoFactorChallenge = { challenge: string }
+type LoginResponse = { access?: string; two_factor_required?: boolean; challenge?: string }
+
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -47,9 +54,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     await ensureCsrfToken()
-    const response = await api.post<{ access: string }>('/auth/token/', { username, password })
-    setAccessToken(response.data.access)
+    const { data } = await api.post<LoginResponse>('/auth/token/', { username, password })
+    if (data.two_factor_required && data.challenge) return { challenge: data.challenge }
+    setAccessToken(data.access ?? null)
     await fetchMe()
+    return null
+  }
+
+  const completeTwoFactor = async (challenge: string, code: string) => {
+    await ensureCsrfToken()
+    const { data } = await api.post<{ access: string; recovery_codes_left?: number }>('/auth/token/2fa/', { challenge, code })
+    setAccessToken(data.access)
+    await fetchMe()
+    return { recovery_codes_left: data.recovery_codes_left }
   }
 
   const register = async (data: Record<string, string>) => {
@@ -59,6 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    // While still signed in, so the server forgets this device's push subscription.
+    await forgetPushOnSignOut()
     try { await api.post('/auth/logout/', {}) } finally {
       setAccessToken(null)
       setUser(null)
@@ -73,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout, reloadUser, applySession }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, login, completeTwoFactor, register, logout, reloadUser, applySession }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

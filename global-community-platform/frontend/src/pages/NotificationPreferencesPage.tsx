@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Bell, BellRing, Check, MessageCircle, MessageSquare, Users, AtSign, ShieldCheck, UserPlus, Volume2 } from 'lucide-react'
 import { playNotificationSound, popupsSupported, requestPopupPermission } from '../context/notificationAlerts'
 import { Link } from 'react-router-dom'
+import PushCard from '../components/PushCard'
 import { api, getErrorMessage } from '../services/api'
 
 type Preferences = {
@@ -70,6 +71,7 @@ export default function NotificationPreferencesPage() {
         <input type="checkbox" checked={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.checked }))} />
       </label>)}
       <div className="preferences-subheading"><span className="eyebrow">HOW YOU ARE ALERTED</span><p>Applies on every device where you are signed in.</p></div>
+      <PushCard />
       <label className="preference-row">
         <div className="preference-icon"><Volume2 size={18} /></div><div className="preference-copy"><strong>Play a sound</strong><span>A short chime when a new notification arrives.</span></div>
         <button type="button" className="text-button" onClick={(event) => { event.preventDefault(); setSoundNote(playNotificationSound() ? '' : 'Click anywhere on the page once, then try again (browsers block sound until you interact).') }}>Test sound</button>
@@ -77,7 +79,7 @@ export default function NotificationPreferencesPage() {
       </label>
       {soundNote && <div className="form-hint">{soundNote}</div>}
       <label className="preference-row">
-        <div className="preference-icon"><BellRing size={18} /></div><div className="preference-copy"><strong>Show pop-ups</strong><span>A system notification when CommonGround is in the background. {permissionText(permission)}</span></div>
+        <div className="preference-icon"><BellRing size={18} /></div><div className="preference-copy"><strong>Show pop-ups</strong><span>A system notification while CommonGround is open in a background tab. {permissionText(permission)}</span></div>
         {permission === 'default' && <button type="button" className="text-button" onClick={(event) => { event.preventDefault(); void requestPopupPermission().then(setPermission) }}>Allow pop-ups</button>}
         <input type="checkbox" checked={form.popup_enabled} onChange={(event) => setForm((current) => ({ ...current, popup_enabled: event.target.checked }))} />
       </label>

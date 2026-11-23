@@ -60,3 +60,28 @@ class UserProfile(models.Model):
         if update_fields is not None and "phone_number" in update_fields:
             kwargs["update_fields"] = {*update_fields, "phone_hash"}
         super().save(*args, **kwargs)
+
+
+class TwoFactorAuth(models.Model):
+    """Authenticator-app (TOTP, RFC 6238) second factor for one account.
+
+    The shared secret is encrypted at rest (see two_factor.encrypt_secret).
+    The row exists from setup; two-factor is on only once confirmed_at is set.
+    """
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="two_factor")
+    secret_encrypted = models.TextField()
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    # The last 30-second time step accepted, so a code can't be used twice.
+    last_used_step = models.BigIntegerField(default=0)
+    # Keyed hashes of the one-use recovery codes that are still unused.
+    recovery_code_hashes = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"2FA for {self.user.username} ({'on' if self.enabled else 'pending'})"
+
+    @property
+    def enabled(self):
+        return self.confirmed_at is not None

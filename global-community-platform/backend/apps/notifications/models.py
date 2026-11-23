@@ -104,3 +104,23 @@ class NotificationPreference(models.Model):
 
     def __str__(self):
         return f"Notification preferences: {self.user.username}"
+
+
+class PushSubscription(models.Model):
+    """One browser/device that asked for push notifications (Web Push, RFC 8030).
+
+    The endpoint is a capability URL from the browser's push service; keys encrypt
+    the payload so only that browser can read it.
+    """
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="push_subscriptions")
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    user_agent = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    failure_count = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self):
+        return f"Push for {self.user_id}: {self.endpoint[:60]}"

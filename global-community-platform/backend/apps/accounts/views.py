@@ -3,6 +3,7 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth.models import update_last_login
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
@@ -13,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
+from rest_framework_simplejwt.serializers import TokenObtainSerializer, TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import UserProfile
@@ -59,7 +60,8 @@ class LoginView(APIView):
     throttle_scope = "auth"
 
     def post(self, request):
-        serializer = TokenObtainPairSerializer(data=request.data)
+        # Check the password only; tokens are issued below once every check passes.
+        serializer = TokenObtainSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         from apps.moderation.services import active_suspension
 
@@ -71,9 +73,18 @@ class LoginView(APIView):
                 "detail": f"Your account is suspended until {until:%d %b %Y, %H:%M} UTC." + (f" Reason: {reason}" if reason else ""),
                 "code": "account_suspended", "suspended_until": until,
             }, status=status.HTTP_403_FORBIDDEN)
-        tokens = serializer.validated_data
-        response = Response({"access": tokens["access"]})
-        set_refresh_cookie(response, tokens["refresh"])
+        from .two_factor import is_enabled, make_login_challenge
+
+        if is_enabled(serializer.user):
+            # Password is right; no tokens until the second step (/auth/token/2fa/).
+            response = Response({"two_factor_required": True, "challenge": make_login_challenge(serializer.user)})
+            response["Cache-Control"] = "no-store"
+            return response
+        refresh = RefreshToken.for_user(serializer.user)
+        if settings.SIMPLE_JWT.get("UPDATE_LAST_LOGIN"):
+            update_last_login(None, serializer.user)
+        response = Response({"access": str(refresh.access_token)})
+        set_refresh_cookie(response, str(refresh))
         response["Cache-Control"] = "no-store"
         return response
 

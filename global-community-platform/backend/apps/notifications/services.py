@@ -116,6 +116,9 @@ def create_notification(
         data=data or {},
     )
     transaction.on_commit(partial(_broadcast_notification, notification.id, recipient.id))
+    from .push import notification_message, send_push_to_user
+
+    send_push_to_user(recipient.id, notification_message(notification))
     return notification
 
 

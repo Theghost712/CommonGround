@@ -40,3 +40,14 @@
   .security-page .form-grid{grid-template-columns:1fr}
 }
 .auth-invite{display:flex;align-items:center;gap:8px;background:#f0efff;color:#4338b8;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:14px}
+
+/* Two-step sign-in */
+.twofa-meta{font-size:11px;color:#7c8394}
+.twofa-scan{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.twofa-scan img{border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px;flex:none}
+.twofa-scan>div{flex:1;min-width:200px;display:grid;gap:8px}
+.twofa-secret{display:inline-block;font-size:12px;letter-spacing:.5px;background:#f4f5f8;border-radius:6px;padding:3px 6px;overflow-wrap:anywhere;user-select:all}
+.twofa-codes{display:grid;gap:12px}
+.twofa-codes ol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;margin:0;padding:12px 12px 12px 34px;background:#f7f8fc;border:1px solid var(--line);border-radius:10px}
+.twofa-codes code{font-size:13px;letter-spacing:.5px}
+@media (max-width:420px){.twofa-codes ol{grid-template-columns:1fr}}

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, KeyRound, LogOut, Mail, MailWarning, MonitorSmartphone, ShieldCheck } from 'lucide-react'
+import TwoFactorSection from '../components/TwoFactorSection'
 import { useAuth } from '../context/AuthContext'
 import { api, getErrorMessage } from '../services/api'
 import '../social.css'
@@ -116,9 +117,10 @@ function SessionsSection() {
 export default function AccountSecurityPage() {
   return <div className="people-page privacy-page security-page">
     <Link to="/profile" className="back-link"><ArrowLeft size={16} /> Back to profile settings</Link>
-    <div className="page-intro-row"><div><span className="eyebrow"><ShieldCheck size={12} /> SETTINGS</span><h1>Account security</h1><p>Your email, password and signed-in devices.</p></div></div>
+    <div className="page-intro-row"><div><span className="eyebrow"><ShieldCheck size={12} /> SETTINGS</span><h1>Account security</h1><p>Your email, password, two-step sign-in and signed-in devices.</p></div></div>
     <EmailSection />
     <PasswordSection />
+    <TwoFactorSection />
     <SessionsSection />
   </div>
 }

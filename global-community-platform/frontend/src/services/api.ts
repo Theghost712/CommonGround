@@ -29,7 +29,7 @@ api.interceptors.request.use(async (config) => {
 // access token. Refreshing for these would be pointless or loop forever.
 // Other /auth/ endpoints (me, profile, ws-ticket) need the refresh-and-retry.
 const NO_REFRESH_PATHS = [
-  '/auth/token/', '/auth/token/refresh/', '/auth/csrf/', '/auth/register/', '/auth/logout/',
+  '/auth/token/', '/auth/token/2fa/', '/auth/token/refresh/', '/auth/csrf/', '/auth/register/', '/auth/logout/',
   // Signed-out account recovery: a 401 here can't be fixed by refreshing.
   '/auth/password/reset/', '/auth/password/reset/confirm/', '/auth/email/verify/',
 ]

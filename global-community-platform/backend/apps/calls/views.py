@@ -49,6 +49,16 @@ class StartCallView(APIView):
             call = Call.objects.create(conversation=conversation, caller=request.user, callee=other.user, kind=kind)
         call = Call.objects.select_related("caller", "callee").get(pk=call.pk)
         push(call.callee_id, {"type": "call.incoming", "call": call_data(call)})
+        # Rings a phone whose app is closed. Same tag as the chat's notifications, so
+        # the "Missed call" / "Voice call · 1:20" chat line replaces it afterwards.
+        from apps.notifications.push import send_push_to_user
+
+        caller_name = call.caller.get_full_name() or call.caller.username
+        send_push_to_user(call.callee_id, {
+            "title": f"{caller_name} is calling", "body": "Incoming video call" if kind == Call.VIDEO else "Incoming voice call",
+            "url": f"/messages?conversation={conversation.pk}", "tag": f"chat-{conversation.pk}", "kind": "call",
+            "call_id": call.pk, "require_interaction": True,
+        })
         return Response({"call": call_data(call), "ice_servers": ice_servers(request.user)}, status=status.HTTP_201_CREATED)
 
 

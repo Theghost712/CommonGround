@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
+import { enablePush, isPushActiveHere, syncPushSubscription } from '../services/push'
 import type { NotificationItem } from './NotificationsContext'
 
 export type DeliveryPreferences = { sound_enabled: boolean; popup_enabled: boolean }
@@ -98,7 +99,8 @@ export function useNotificationAlerts(unreadCount: number) {
       if (current?.sound_enabled === true && !alreadyLooking && Date.now() - lastSound.current > SOUND_GAP_MS) {
         if (playNotificationSound()) lastSound.current = Date.now()
       }
-      if (current?.popup_enabled === true && !visible && popupsSupported() && Notification.permission === 'granted') {
+      // With push on this device, the service worker shows the pop-up (once, even if the tab is closed).
+      if (current?.popup_enabled === true && !visible && !isPushActiveHere() && popupsSupported() && Notification.permission === 'granted') {
         try {
           const popup = new Notification(item.title, { body: item.body || undefined, icon: '/favicon.svg', tag: `commonground-${item.id}` })
           popup.onclick = () => {
@@ -113,5 +115,18 @@ export function useNotificationAlerts(unreadCount: number) {
     }
     window.addEventListener('commonground:notification', onNotification)
     return () => window.removeEventListener('commonground:notification', onNotification)
+  }, [navigate])
+
+  // Messages from the service worker: a tapped push notification, or a rotated subscription.
+  useEffect(() => {
+    void syncPushSubscription()
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker) return
+    const onMessage = (event: MessageEvent) => {
+      const message = event.data as { type?: string; url?: string } | null
+      if (message?.type === 'commonground:open' && message.url?.startsWith('/')) navigate(message.url)
+      if (message?.type === 'commonground:resubscribe') void enablePush().catch(() => undefined)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
   }, [navigate])
 }

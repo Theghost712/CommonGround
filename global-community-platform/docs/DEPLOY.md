@@ -51,6 +51,13 @@ EMAIL_HOST_PASSWORD=...
 DEFAULT_FROM_EMAIL="CommonGround <no-reply@commonground.example>"
 TURN_URLS=turn:turn.commonground.example:3478,turns:turn.commonground.example:5349
 TURN_SECRET=<same as coturn static-auth-secret>
+# Push notifications to closed apps (optional): run `manage.py generate_vapid_keys` once.
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:admin@commonground.example
+# Encrypts authenticator-app (2FA) secrets. Optional; defaults to DJANGO_SECRET_KEY.
+# Set it so the secret key can be rotated without switching off everyone's 2FA.
+TWO_FACTOR_ENCRYPTION_KEY=<another long random string>
 ```
 
 Keep `.env` readable only by the app user: `chmod 600 /srv/commonground/.env`.
@@ -138,6 +145,14 @@ variables `PORT=8000`, `DJANGO_ENV=production`, `DJANGO_DEBUG=False`,
 Supabase pooler has about 15 sessions in total), `NUM_PROXIES=1`, `FORWARDED_ALLOW_IPS=*`,
 `WEB_CONCURRENCY=1`. Hosts and origins default to the Vercel domain.
 Live at https://commonground-pearl.vercel.app (health: `/api/v1/health/`).
+
+Push notifications: add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT`
+(from `python manage.py generate_vapid_keys`; keep the same keys afterwards, or every
+device must turn push on again). Without them the "Push notifications on this device"
+switch says push isn't set up. On iPhone/iPad, push works only after "Add to Home Screen".
+
+Two-step sign-in: if someone loses both their phone and recovery codes, a staff member
+deletes their row under Admin → Two factor auths; they then sign in with the password.
 
 To make an account staff (for `/moderation` and `/admin/`), run in Supabase's SQL
 editor: `update commonground.auth_user set is_staff = true, is_superuser = true where username = '<you>';`

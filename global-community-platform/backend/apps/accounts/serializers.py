@@ -9,11 +9,12 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     email_verified = serializers.SerializerMethodField()
+    two_factor_enabled = serializers.SerializerMethodField()
     can_moderate = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "email_verified", "can_moderate", "is_staff", "first_name", "last_name", "date_joined"]
+        fields = ["id", "username", "email", "email_verified", "two_factor_enabled", "can_moderate", "is_staff", "first_name", "last_name", "date_joined"]
         # Email changes go through /auth/email/change/ (password + confirmation link).
         read_only_fields = ["id", "email", "is_staff", "date_joined"]
 
@@ -21,6 +22,11 @@ class UserSerializer(serializers.ModelSerializer):
         from apps.moderation.services import can_moderate
 
         return can_moderate(user)
+
+    def get_two_factor_enabled(self, user):
+        from .two_factor import is_enabled
+
+        return is_enabled(user)
 
     def get_email_verified(self, user):
         profile = getattr(user, "profile", None)

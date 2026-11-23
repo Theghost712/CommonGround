@@ -5,7 +5,7 @@ import { Route, Routes } from 'react-router-dom'
 import { renderWithProviders } from '../test/utils'
 import AuthPage from './AuthPage'
 
-const auth = vi.hoisted(() => ({ login: vi.fn(), register: vi.fn() }))
+const auth = vi.hoisted(() => ({ login: vi.fn(), register: vi.fn(), completeTwoFactor: vi.fn() }))
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: null, loading: false, logout: vi.fn(), ...auth }),
 }))
@@ -25,6 +25,38 @@ describe('AuthPage', () => {
   beforeEach(() => {
     auth.login.mockReset()
     auth.register.mockReset()
+    auth.completeTwoFactor.mockReset()
+  })
+
+  it('asks for an authenticator code when the account has two-step sign-in', async () => {
+    auth.login.mockResolvedValue({ challenge: 'signed-challenge' })
+    auth.completeTwoFactor.mockResolvedValue({})
+    const user = userEvent.setup()
+    renderAuth('login')
+
+    await user.type(screen.getByLabelText('Username'), 'amani')
+    await user.type(screen.getByLabelText('Password'), 'Strong-password-123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByRole('heading', { name: 'Enter your code' })).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Authentication code'), '12a3456')
+    await user.click(screen.getByRole('button', { name: /verify/i }))
+    expect(auth.completeTwoFactor).toHaveBeenCalledWith('signed-challenge', '123456')
+    expect(await screen.findByRole('heading', { name: 'Home feed' })).toBeInTheDocument()
+  })
+
+  it('accepts a recovery code instead', async () => {
+    auth.login.mockResolvedValue({ challenge: 'c' })
+    auth.completeTwoFactor.mockResolvedValue({ recovery_codes_left: 8 })
+    const user = userEvent.setup()
+    renderAuth('login')
+    await user.type(screen.getByLabelText('Username'), 'amani')
+    await user.type(screen.getByLabelText('Password'), 'Strong-password-123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+    await user.click(await screen.findByRole('button', { name: /use a recovery code/i }))
+    await user.type(screen.getByLabelText('Recovery code'), 'abcde-fghjk')
+    await user.click(screen.getByRole('button', { name: /verify/i }))
+    expect(auth.completeTwoFactor).toHaveBeenCalledWith('c', 'abcde-fghjk')
   })
 
   it('signs in and navigates to the home feed', async () => {

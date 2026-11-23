@@ -159,7 +159,8 @@ MEDIA_ACCEL_REDIRECT_PREFIX = os.getenv("MEDIA_ACCEL_REDIRECT_PREFIX", "")
 # cached for a year) and every other non-API path returns index.html.
 FRONTEND_DIST = Path(os.getenv("FRONTEND_DIST", BASE_DIR.parent / "frontend" / "dist"))
 WHITENOISE_ROOT = FRONTEND_DIST if FRONTEND_DIST.is_dir() else None
-WHITENOISE_IMMUTABLE_FILE_TEST = r"^/assets/.+-[A-Za-z0-9_-]{8,}\.(js|css|woff2?|svg|png|jpe?g|webp)$"
+WHITENOISE_MIMETYPES = {".webmanifest": "application/manifest+json"}
+WHITENOISE_IMMUTABLE_FILE_TEST =r"^/assets/.+-[A-Za-z0-9_-]{8,}\.(js|css|woff2?|svg|png|jpe?g|webp)$"
 # Content-Security-Policy for the app shell when Django serves it (nginx sets its own).
 # Extra media origins (e.g. https://<project>.supabase.co for uploaded files) are added.
 CSP_MEDIA_ORIGINS = env_list("CSP_MEDIA_ORIGINS", "")
@@ -345,6 +346,15 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 # Password-reset links work for 1 hour and only once; email links for 3 days.
 PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "3600"))
 EMAIL_LINK_MAX_AGE_SECONDS = int(os.getenv("EMAIL_LINK_MAX_AGE_SECONDS", str(3 * 24 * 3600)))
+# Encrypts authenticator-app secrets at rest. Defaults to SECRET_KEY; set it separately
+# so SECRET_KEY can be rotated without breaking everyone's two-step sign-in.
+TWO_FACTOR_ENCRYPTION_KEY = os.getenv("TWO_FACTOR_ENCRYPTION_KEY", "")
+
+# Web Push (notifications to closed apps). Create keys with `manage.py generate_vapid_keys`.
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
+VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "mailto:admin@example.com")
+WEB_PUSH_SYNC = os.getenv("WEB_PUSH_SYNC", "False").lower() == "true"
 
 # Voice/video calls (WebRTC). STUN finds each side's public address; TURN relays media
 # when a direct connection is impossible (strict NAT, mobile networks). TURN is needed

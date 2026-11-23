@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, UserPlus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
 import '../account-security.css'
 import { useAuth } from '../context/AuthContext'
@@ -8,7 +8,7 @@ import { getErrorMessage } from '../services/api'
 
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const isRegister = mode === 'register'
-  const { login, register } = useAuth()
+  const { login, register, completeTwoFactor } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   // Arrived through a friend's invite link (…/register?invite=username).
@@ -16,16 +16,52 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [form, setForm] = useState({ username: '', email: '', first_name: '', last_name: '', password: '', password_confirm: '' })
+  // Set after a correct password on an account with two-step sign-in.
+  const [challenge, setChallenge] = useState('')
+  const [code, setCode] = useState('')
+  const [useRecovery, setUseRecovery] = useState(false)
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError('')
     try {
       if (isRegister) await register(invitedBy ? { ...form, invited_by: invitedBy } : form)
-      else await login(form.username, form.password)
+      else {
+        const pending = await login(form.username, form.password)
+        if (pending) { setChallenge(pending.challenge); setCode(''); return }
+      }
       navigate('/home')
     } catch (err) { setError(getErrorMessage(err)) }
     finally { setBusy(false) }
+  }
+
+  const submitCode = async (event: FormEvent) => {
+    event.preventDefault(); setBusy(true); setError('')
+    try {
+      const { recovery_codes_left: left } = await completeTwoFactor(challenge, code)
+      if (left !== undefined && left <= 3) window.alert(`You have ${left} recovery code${left === 1 ? '' : 's'} left. Create new ones in Account security.`)
+      navigate('/home')
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status
+      if (status === 401) { setChallenge(''); setForm((current) => ({ ...current, password: '' })) }
+      setError(getErrorMessage(err))
+    } finally { setBusy(false) }
+  }
+
+  if (challenge) {
+    return <AuthShell eyebrow="TWO-STEP SIGN-IN" title="Enter your code" subtitle={useRecovery ? 'Type one of the recovery codes you saved when you turned on two-step sign-in.' : 'Open your authenticator app and type the 6-digit code for CommonGround.'}>
+      <form onSubmit={submitCode} className="auth-form">
+        <label>{useRecovery ? 'Recovery code' : 'Authentication code'}
+          {useRecovery
+            ? <input required autoFocus autoComplete="off" spellCheck={false} value={code} onChange={(e) => setCode(e.target.value)} placeholder="xxxxx-xxxxx" />
+            : <input required autoFocus inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9 ]/g, ''))} placeholder="123 456" />}
+        </label>
+        {error && <div className="error-message">{error}</div>}
+        <button className="button button-primary auth-submit" disabled={busy}>{busy ? 'Checking…' : 'Verify'} <ShieldCheck size={17} /></button>
+      </form>
+      <p className="auth-forgot"><button type="button" className="text-button" onClick={() => { setUseRecovery(!useRecovery); setCode(''); setError('') }}>{useRecovery ? 'Use the code from my app' : "Can't use your app? Use a recovery code"}</button></p>
+      <p className="auth-switch"><button type="button" className="text-button" onClick={() => { setChallenge(''); setError(''); setUseRecovery(false) }}><ArrowLeft size={14} /> Back to sign in</button></p>
+    </AuthShell>
   }
 
   return <AuthShell eyebrow="YOUR COMMUNITY STARTS HERE" title={isRegister ? 'Create your account' : 'Welcome back'} subtitle={isRegister ? 'Join the conversation. There is a place for your voice.' : 'Sign in to pick up where the conversation left off.'}>

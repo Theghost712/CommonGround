@@ -8,11 +8,16 @@ from apps.accounts.security_views import (
     EmailChangeView, EmailVerificationResendView, EmailVerifyView, PasswordChangeView,
     PasswordResetConfirmView, PasswordResetRequestView, SignOutEverywhereView,
 )
+from apps.accounts.two_factor import (
+    TwoFactorConfirmView, TwoFactorDisableView, TwoFactorLoginView, TwoFactorRecoveryCodesView,
+    TwoFactorSetupView, TwoFactorStatusView,
+)
 from apps.communities.views import CommunityViewSet
 from apps.discussions.polls import PollCreateView, PollVoteView
 from apps.discussions.posts import DiscussionImageView, DiscussionVideoView, PostCreateView, VideoPostCreateView
 from apps.discussions.views import CommentViewSet, DiscussionAttachmentDownloadView, DiscussionViewSet, HashtagDetailView, TrendingHashtagsView
 from apps.messaging.views import ChatUserSearchView, ConversationViewSet
+from apps.notifications.push import PushConfigView, PushSubscribeView, PushTestView, PushUnsubscribeView
 from apps.notifications.views import NotificationViewSet, NotificationPreferencesView
 
 admin.site.site_header = "CommonGround Administration"
@@ -39,6 +44,12 @@ urlpatterns = [
     path("api/v1/auth/register/", RegisterView.as_view(), name="register"),
     path("api/v1/auth/csrf/", csrf_cookie, name="csrf_cookie"),
     path("api/v1/auth/token/", LoginView.as_view(), name="token_obtain_pair"),
+    path("api/v1/auth/token/2fa/", TwoFactorLoginView.as_view(), name="token_two_factor"),
+    path("api/v1/auth/2fa/", TwoFactorStatusView.as_view(), name="two_factor_status"),
+    path("api/v1/auth/2fa/setup/", TwoFactorSetupView.as_view(), name="two_factor_setup"),
+    path("api/v1/auth/2fa/confirm/", TwoFactorConfirmView.as_view(), name="two_factor_confirm"),
+    path("api/v1/auth/2fa/disable/", TwoFactorDisableView.as_view(), name="two_factor_disable"),
+    path("api/v1/auth/2fa/recovery-codes/", TwoFactorRecoveryCodesView.as_view(), name="two_factor_recovery_codes"),
     path("api/v1/auth/token/refresh/", RefreshView.as_view(), name="token_refresh"),
     path("api/v1/auth/logout/", LogoutView.as_view(), name="logout"),
     path("api/v1/auth/ws-ticket/", WebSocketTicketView.as_view(), name="websocket_ticket"),
@@ -61,6 +72,10 @@ urlpatterns = [
     path("api/v1/tags/<str:name>/", HashtagDetailView.as_view(), name="tag_detail"),
     path("api/v1/images/<int:pk>/", DiscussionImageView.as_view(), name="discussion_image"),
     path("api/v1/messaging/users/", ChatUserSearchView.as_view(), name="chat_user_search"),
+    path("api/v1/push/config/", PushConfigView.as_view(), name="push_config"),
+    path("api/v1/push/subscriptions/", PushSubscribeView.as_view(), name="push_subscribe"),
+    path("api/v1/push/subscriptions/remove/", PushUnsubscribeView.as_view(), name="push_unsubscribe"),
+    path("api/v1/push/test/", PushTestView.as_view(), name="push_test"),
     path("api/v1/notifications/preferences/", NotificationPreferencesView.as_view(), name="notification_preferences"),
     path("api/v1/", include("apps.social.urls")),
     path("api/v1/", include("apps.stories.urls")),
