@@ -38,6 +38,7 @@ class Story(models.Model):
     class Meta:
         ordering = ["created_at"]
         indexes = [models.Index(fields=["author", "expires_at"])]
+        verbose_name_plural = "stories"
 
     @property
     def is_active(self):

@@ -56,6 +56,7 @@ class ContactMatch(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["owner", "target"], name="unique_contact_match")]
+        verbose_name_plural = "contact matches"
 
 
 class FollowRequest(models.Model):

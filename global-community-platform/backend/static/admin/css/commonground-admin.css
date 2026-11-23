@@ -67,6 +67,9 @@ a:hover { color: #5840bd; }
 .cg-stat-purple { border-top: 3px solid var(--cg-purple); }
 .cg-stat-blue { border-top: 3px solid var(--cg-blue); }
 .cg-stat-amber { border-top: 3px solid var(--cg-amber); }
+.cg-stat-green { border-top: 3px solid var(--cg-green); }
+.cg-stat-red { border-top: 3px solid #d64550; }
+.cg-stat-red .cg-stat-value { color: #c4323e; }
 .cg-dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(250px, .8fr); align-items: start; gap: 17px; }
 .cg-panel { min-width: 0; padding: 20px 22px; border: 1px solid var(--cg-border); border-radius: 14px; background: #fff; box-shadow: var(--cg-shadow); }
 .cg-panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -134,4 +137,50 @@ input[type=submit]:hover, .submit-row input:hover, .button:hover, a.button:hover
   .cg-panel { padding: 16px; }
   .cg-model-actions { gap: 8px; }
   #changelist #toolbar form input[type="text"] { max-width: 62vw; }
+}
+
+/* ---- Fixes (2026-11-23) ---- */
+/* Light theme only: the custom colours above are designed for it. */
+:root, html[data-theme="dark"], html[data-theme="auto"] { color-scheme: light; }
+.theme-toggle { display: none !important; }
+/* Django fixes the dashboard to 600px; use the whole width. */
+.dashboard #content { width: auto; }
+/* Header links were drawn in Django's (white) header colour. */
+#header #user-tools a, #header #user-tools a:link, #header #user-tools a:visited, #header #user-tools button { color: #5e6881; border-bottom: 0; text-decoration: none; }
+#header #user-tools a:hover, #header #user-tools a:focus, #header #user-tools button:hover { color: var(--cg-purple); }
+#header #user-tools { margin-left: auto; }
+#header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+/* Sidebar: transparent groups so the light text sits on the navy background. */
+#nav-sidebar .module, #nav-sidebar .module caption, #nav-sidebar table, #nav-sidebar th, #nav-sidebar td, #nav-sidebar tr { background: transparent; border: 0; box-shadow: none; }
+#nav-sidebar .module { margin-bottom: 8px; }
+#nav-sidebar .module caption, #nav-sidebar .module caption a { color: #9aa6c4; font-size: 10px; font-weight: 750; letter-spacing: .9px; text-transform: uppercase; padding: 12px 10px 6px; }
+#nav-sidebar th a, #nav-sidebar th { color: #dde3f3; font-size: 12.5px; font-weight: 500; }
+#nav-sidebar td a.addlink { color: #8fd3b4; font-size: 11px; }
+#nav-sidebar tr:hover th a { color: #fff; }
+#nav-sidebar .current-model th a { color: #fff; font-weight: 650; }
+/* Readable sizes on the home page. */
+.cg-stat-label { font-size: 12px; }
+.cg-stat-hint { font-size: 11px; }
+.cg-model-row > a, .cg-model-row > span { font-size: 13px; }
+.cg-model-actions a { font-size: 11.5px; }
+.cg-app-group h3, .cg-eyebrow { font-size: 10.5px; }
+.cg-activity-title { font-size: 12.5px; }
+.cg-activity-meta, .cg-empty-state { font-size: 11.5px; }
+.cg-dashboard-hero p { font-size: 13.5px; }
+.cg-hero-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; position: relative; z-index: 1; }
+.cg-hero-links a { color: #fff; background: rgb(255 255 255 / 14%); border: 1px solid rgb(255 255 255 / 22%); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.cg-hero-links a:hover { color: #fff; background: rgb(255 255 255 / 24%); }
+@media (max-width: 767px) {
+  #header #user-tools { font-size: 11px; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .cg-stat-value { font-size: 23px; }
+}
+@media (max-width: 767px) {
+  #header { flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 4px; height: auto !important; flex-shrink: 0; padding: 8px 14px 10px; }
+  #header #user-tools { display: flex !important; width: 100%; margin: 0; justify-content: center; position: static; }
+  #header #user-tools .cg-welcome { display: none; }
+}
+@media (max-width: 767px) {
+  #header { display: block !important; height: auto !important; flex-shrink: 0 !important; padding: 10px 14px 12px !important; text-align: center; overflow: visible; }
+  #header #branding { justify-content: center; min-height: 0; }
+  #header #user-tools { float: none !important; display: flex !important; justify-content: center; margin: 8px 0 0 !important; width: auto; }
 }

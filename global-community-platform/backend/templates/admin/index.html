@@ -3,6 +3,7 @@
 
 {% block bodyclass %}{{ block.super }} dashboard{% endblock %}
 {% block nav-breadcrumbs %}{% endblock %}
+{% block content_title %}{% endblock %}
 
 {% block content %}
 <div class="cg-dashboard">
@@ -11,6 +12,11 @@
       <span class="cg-eyebrow">COMMONGROUND WORKSPACE</span>
       <h1>Platform overview</h1>
       <p>Manage communities, conversations, members and platform activity.</p>
+      <div class="cg-hero-links">
+        <a href="/moderation">Open moderation queue</a>
+        <a href="/" target="_blank" rel="noopener">View the site</a>
+        <a href="/api/v1/health/" target="_blank" rel="noopener">System health</a>
+      </div>
     </div>
     <div class="cg-hero-mark" aria-hidden="true">cg</div>
   </section>

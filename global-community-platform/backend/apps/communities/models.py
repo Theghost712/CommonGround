@@ -69,6 +69,7 @@ class Community(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["visibility", "created_at"]), models.Index(fields=["category"])]
+        verbose_name_plural = "communities"
 
     def save(self, *args, **kwargs):
         if not self.slug:
