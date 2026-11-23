@@ -36,6 +36,7 @@ router.register("events", CommunityEventViewSet, basename="event")
 
 from apps.common.health import health
 from apps.common.jobs import tick_view
+from apps.common.seo import robots_txt, sitemap_xml
 from apps.common.spa import spa_index
 from apps.common.uploads import UploadConfigView, UploadRequestView
 
@@ -87,7 +88,10 @@ urlpatterns = [
     path("api/v1/", include("apps.safety.urls")),
     path("api/v1/", include("apps.moderation.urls")),
     path("api/v1/", include("apps.calls.urls")),
+    path("api/v1/", include("apps.monetization.urls")),
     path("api/v1/", include(router.urls)),
+    path("robots.txt", robots_txt, name="robots"),
+    path("sitemap.xml", sitemap_xml, name="sitemap"),
     # Everything else is the React app (client-side routes like /home, /u/amina).
     re_path(r"^(?!api/|admin/|ws/|static/|media/).*$", spa_index, name="spa"),
 ]

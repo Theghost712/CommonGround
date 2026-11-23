@@ -16,6 +16,9 @@ def welcome_invited_user(new_user, inviter_username):
     if inviter is None:
         return None
     try:
+        from apps.monetization.services import record_referral
+
+        record_referral(inviter, new_user)  # the inviter earns ad credit once this member confirms their email
         follow_user(new_user, inviter)   # a follow request if the inviter is private
         follow_user(inviter, new_user)
         from apps.notifications.models import Notification

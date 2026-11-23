@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Bookmark, FileText, Heart, PenLine, Send, Sparkles, ThumbsUp, Trash2, Trophy } from 'lucide-react'
+import { ArrowLeft, Bookmark, FileText, Heart, PenLine, Send, Sparkles, ThumbsUp, Trash2, Trophy, Coins, Megaphone } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { PromoteDialog, TipDialog } from '../components/MoneyDialogs'
+import { JoinPrompt } from '../components/PublicLayout'
 import { api, getErrorMessage } from '../services/api'
 import type { Comment, Discussion, DiscussionAttachment } from '../types'
 import UserLink from '../components/UserHoverCard'
@@ -101,6 +103,7 @@ export default function DiscussionPage() {
   const [body, setBody] = useState('')
   const [replyTo, setReplyTo] = useState<number | null>(null)
   const [error, setError] = useState('')
+  const [money, setMoney] = useState<'tip' | 'promote' | null>(null)
   const discussionQuery = useQuery({ queryKey: ['discussion', String(id)], queryFn: async () => (await api.get<Discussion>(`/discussions/${id}/`)).data, enabled: Boolean(id) })
   const discussion = discussionQuery.data
   const commentsQuery = useQuery({ queryKey: ['comments', id], queryFn: async () => (await api.get<Comment[]>(`/discussions/${id}/comments/`)).data, enabled: Boolean(id) })
@@ -154,7 +157,7 @@ export default function DiscussionPage() {
   if (discussionQuery.error || !discussion) return <div className="error-card">{getErrorMessage(discussionQuery.error)}</div>
 
   return <div className="detail-page discussion-detail-page">
-    <Link to="/home" className="back-link"><ArrowLeft size={16} /> Back to conversations</Link>
+    {user && <Link to="/home" className="back-link"><ArrowLeft size={16} /> Back to conversations</Link>}
     <article className="detail-card">
       <div className="discussion-meta"><UserLink username={discussion.author_username} className="author-link"><div className="avatar avatar-tiny">{discussion.author_username.slice(0, 1).toUpperCase()}</div><span className="author-name">{discussion.author_username}</span></UserLink><span className="meta-separator">·</span><span>{new Date(discussion.created_at).toLocaleString()}</span>{discussion.community_name && <Link to={`/communities/${discussion.community}`} className="community-tag">{discussion.community_name}</Link>}</div>
       <div className="detail-topic-row"><span className="topic-pill">{discussion.category}</span>{discussion.author === user?.id && <div className="owner-actions"><Link to={`/discussions/${discussion.id}/edit`} className="action-button"><PenLine size={15} /> Edit</Link><button className="action-button danger-action" onClick={deleteDiscussion} disabled={deleteMutation.isPending}><Trash2 size={15} /> {deleteMutation.isPending ? 'Deleting…' : 'Delete'}</button></div>}</div>
@@ -168,11 +171,15 @@ export default function DiscussionPage() {
         if (link) { event.preventDefault(); navigate(link.getAttribute('href') || '/') }
       }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(linkifyHtml(DOMPurify.sanitize(discussion.content_html)), { ADD_ATTR: ['data-internal'] }) }} /> : (discussion.poll && discussion.body === discussion.poll.question ? null : <p className="detail-body"><RichText text={discussion.body} /></p>)}
       {discussion.attachments?.some((file) => !file.is_image && !file.is_video) && <section className="detail-attachments"><h3>Files <span>{discussion.attachments.filter((file) => !file.is_image && !file.is_video).length}</span></h3><div className="detail-attachment-grid">{discussion.attachments.filter((file) => !file.is_image && !file.is_video).map((file) => <AttachmentPreview file={file} key={file.id} />)}</div></section>}
-      <div className="detail-actions"><button className={`action-button ${discussion.my_reaction === 'like' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('like')} disabled={reactMutation.isPending}><Heart size={17} fill={discussion.my_reaction === 'like' ? 'currentColor' : 'none'} /> Like · {discussion.reactions_count}</button><button className={`action-button ${discussion.my_reaction === 'insightful' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('insightful')} disabled={reactMutation.isPending}><Sparkles size={16} /> Insightful</button><button className={`action-button ${discussion.my_reaction === 'support' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('support')} disabled={reactMutation.isPending}><ThumbsUp size={16} /> Support</button><button className={`action-button ${discussion.my_reaction === 'celebrate' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('celebrate')} disabled={reactMutation.isPending}><Trophy size={16} /> Celebrate</button><button className={`action-button detail-bookmark ${discussion.has_bookmarked ? 'saved' : ''}`} onClick={() => bookmarkMutation.mutate()} disabled={bookmarkMutation.isPending}><Bookmark size={16} fill={discussion.has_bookmarked ? 'currentColor' : 'none'} /> {discussion.has_bookmarked ? 'Saved' : 'Save'}</button></div>
+      {!user ? <JoinPrompt action={`${discussion.reactions_count} reactions · ${discussion.comments_count} comments. Join to react, comment and tip the author.`} /> : <div className="detail-actions">{discussion.author === user.id
+        ? <button className="action-button" onClick={() => setMoney('promote')}><Megaphone size={16} /> Promote</button>
+        : <button className="action-button" onClick={() => setMoney('tip')}><Coins size={16} /> Tip</button>}<button className={`action-button ${discussion.my_reaction === 'like' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('like')} disabled={reactMutation.isPending}><Heart size={17} fill={discussion.my_reaction === 'like' ? 'currentColor' : 'none'} /> Like · {discussion.reactions_count}</button><button className={`action-button ${discussion.my_reaction === 'insightful' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('insightful')} disabled={reactMutation.isPending}><Sparkles size={16} /> Insightful</button><button className={`action-button ${discussion.my_reaction === 'support' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('support')} disabled={reactMutation.isPending}><ThumbsUp size={16} /> Support</button><button className={`action-button ${discussion.my_reaction === 'celebrate' ? 'liked' : ''}`} onClick={() => reactMutation.mutate('celebrate')} disabled={reactMutation.isPending}><Trophy size={16} /> Celebrate</button><button className={`action-button detail-bookmark ${discussion.has_bookmarked ? 'saved' : ''}`} onClick={() => bookmarkMutation.mutate()} disabled={bookmarkMutation.isPending}><Bookmark size={16} fill={discussion.has_bookmarked ? 'currentColor' : 'none'} /> {discussion.has_bookmarked ? 'Saved' : 'Save'}</button></div>}
+      {money === 'tip' && <TipDialog username={discussion.author_username} displayName={discussion.author_display_name} discussionId={discussion.id} onClose={() => setMoney(null)} />}
+      {money === 'promote' && <PromoteDialog discussionId={discussion.id} onClose={() => setMoney(null)} />}
     </article>
 
     <section className="comments-section"><div className="comments-heading"><div><span className="eyebrow">KEEP IT GOING</span><h2>The conversation</h2></div><span>{discussion.comments_count} comments</span></div>
-      <form className="comment-form" onSubmit={submit}>{replyTo && <div className="reply-notice">Replying to a comment <button type="button" onClick={() => setReplyTo(null)}>Cancel</button></div>}<textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} placeholder="Add a thoughtful comment…" required /><div className="comment-form-footer"><span>Different perspectives make better conversations.</span><button className="button button-primary" disabled={commentMutation.isPending || !body.trim()}>{commentMutation.isPending ? 'Sending…' : 'Post comment'} <Send size={15} /></button></div>{error && <div className="error-message">{error}</div>}</form>
+      {user && <form className="comment-form" onSubmit={submit}>{replyTo && <div className="reply-notice">Replying to a comment <button type="button" onClick={() => setReplyTo(null)}>Cancel</button></div>}<textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} placeholder="Add a thoughtful comment…" required /><div className="comment-form-footer"><span>Different perspectives make better conversations.</span><button className="button button-primary" disabled={commentMutation.isPending || !body.trim()}>{commentMutation.isPending ? 'Sending…' : 'Post comment'} <Send size={15} /></button></div>{error && <div className="error-message">{error}</div>}</form>}
       <div className="comment-list">{commentsQuery.isLoading && <div className="loading-card">Loading comments…</div>}{commentsQuery.error && <div className="error-card">{getErrorMessage(commentsQuery.error)}</div>}{commentsQuery.data?.map((comment) => <CommentNode key={comment.id} comment={comment} actions={commentActions} />)}{commentsQuery.data?.length === 0 && <p className="no-comments">Be the first to add a perspective.</p>}</div>
     </section>
   </div>

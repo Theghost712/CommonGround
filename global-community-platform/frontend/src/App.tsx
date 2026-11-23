@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppLayout from './components/AppLayout'
-import AuthPage from './pages/AuthPage'
+import AuthPage, { safeNext } from './pages/AuthPage'
+import PublicLayout from './components/PublicLayout'
 
 // Each page is its own chunk, loaded on first visit: the first screen downloads far less.
 const EventsCalendarPage = lazy(() => import('./pages/EventsCalendarPage'))
@@ -25,6 +26,8 @@ const TagPage = lazy(() => import('./pages/TagPage'))
 const AccountSecurityPage = lazy(() => import('./pages/AccountSecurityPage'))
 const ReelsPage = lazy(() => import('./pages/ReelsPage'))
 const ModerationPage = lazy(() => import('./pages/ModerationPage'))
+const EarningsPage = lazy(() => import('./pages/EarningsPage'))
+const PayReturnPage = lazy(() => import('./pages/PayReturnPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/AccountRecoveryPages').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('./pages/AccountRecoveryPages').then((m) => ({ default: m.ResetPasswordPage })))
 const VerifyEmailPage = lazy(() => import('./pages/AccountRecoveryPages').then((m) => ({ default: m.VerifyEmailPage })))
@@ -35,11 +38,23 @@ function ProtectedLayout() {
   return user ? <AppLayout /> : <Navigate to="/login" replace />
 }
 
+/** Public discussions and communities can be read signed out (and found on Google). */
+function OpenLayout() {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="app-loading">Loading CommonGround…</div>
+  return user ? <AppLayout /> : <PublicLayout />
+}
+
+function SignedInRedirect() {
+  const [params] = useSearchParams()
+  return <Navigate to={safeNext(params.get('next'))} replace />
+}
+
 export default function App() {
   const { user } = useAuth()
   return <Suspense fallback={<div className="app-loading">Loading…</div>}><Routes>
-    <Route path="/login" element={user ? <Navigate to="/home" replace /> : <AuthPage mode="login" />} />
-    <Route path="/register" element={user ? <Navigate to="/home" replace /> : <AuthPage mode="register" />} />
+    <Route path="/login" element={user ? <SignedInRedirect /> : <AuthPage mode="login" />} />
+    <Route path="/register" element={user ? <SignedInRedirect /> : <AuthPage mode="register" />} />
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
     <Route path="/reset-password" element={<ResetPasswordPage />} />
     {/* Works signed in or out: the emailed link is the proof. */}
@@ -50,10 +65,8 @@ export default function App() {
       <Route path="/explore" element={<ExplorePage />} />
       <Route path="/reels" element={<ReelsPage />} />
       <Route path="/communities" element={<CommunitiesPage />} />
-      <Route path="/communities/:id" element={<CommunityDetailPage />} />
       <Route path="/events-calendar" element={<EventsCalendarPage />} />
       <Route path="/discussions/new" element={<CreateDiscussionPage />} />
-      <Route path="/discussions/:id" element={<DiscussionPage />} />
       <Route path="/discussions/:id/edit" element={<CreateDiscussionPage />} />
       <Route path="/bookmarks" element={<BookmarksPage />} />
       <Route path="/messages" element={<ChatPage />} />
@@ -67,6 +80,12 @@ export default function App() {
       <Route path="/moderation" element={<ModerationPage />} />
       <Route path="/tags/:name" element={<TagPage />} />
       <Route path="/u/:username" element={<UserProfilePage />} />
+      <Route path="/earnings" element={<EarningsPage />} />
+      <Route path="/pay/return" element={<PayReturnPage />} />
+    </Route>
+    <Route element={<OpenLayout />}>
+      <Route path="/communities/:id" element={<CommunityDetailPage />} />
+      <Route path="/discussions/:id" element={<DiscussionPage />} />
     </Route>
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></Suspense>

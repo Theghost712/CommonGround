@@ -74,7 +74,20 @@ export default function HomePage() {
       return new URL(last.next, window.location.origin).searchParams.get('cursor') ?? undefined
     },
   })
-  const posts = feed.data?.pages.flatMap((page) => page.results) ?? []
+  const organic = feed.data?.pages.flatMap((page) => page.results) ?? []
+  // Sponsored posts: one after the 3rd post, then one every 8 posts, in For you only.
+  const sponsored = useQuery({
+    queryKey: ['sponsored-feed'], enabled: tab === 'for-you', staleTime: 5 * 60_000,
+    queryFn: async () => (await api.get<Discussion[]>('/promotions/feed/')).data,
+  })
+  const ads = tab === 'for-you' && !query && !category && Array.isArray(sponsored.data) ? sponsored.data : []
+  // A sponsored post replaces its ordinary copy, so it shows once, in its paid slot.
+  const rest = ads.length ? organic.filter((post) => !ads.some((ad) => ad.id === post.id)) : organic
+  const posts = rest.flatMap((post, index) => {
+    const slot = index === 2 ? 0 : index > 2 && (index - 2) % 8 === 0 ? (index - 2) / 8 : -1
+    return slot >= 0 && slot < ads.length ? [post, ads[slot]] : [post]
+  })
+  if (ads.length && rest.length < 3 && feed.isSuccess && !feed.hasNextPage) posts.push(ads[0])
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed
 
   // Endless scrolling: fetch the next page when the bottom of the feed comes into view.
@@ -124,7 +137,7 @@ export default function HomePage() {
       {!feed.isLoading && !feed.error && posts.length === 0 && (tab === 'following' && !filtered
         ? <div className="empty-card"><div className="empty-icon"><UsersRound size={23} /></div><h3>Your Following feed is quiet</h3><p>Follow friends and family to see their posts here.</p><Link to="/people" className="button button-primary">Find people <ArrowRight size={16} /></Link></div>
         : <div className="empty-card"><div className="empty-icon"><Compass size={23} /></div><h3>{filtered ? 'No matching posts' : 'No posts yet'}</h3><p>{filtered ? 'Try another search or topic.' : 'Share the first one with your community.'}</p>{!filtered && <Link to="/discussions/new" className="button button-primary">Create a post <ArrowRight size={16} /></Link>}</div>)}
-      {posts.map((discussion) => <FeedPost key={discussion.id} discussion={discussion} />)}
+      {posts.map((discussion) => <FeedPost key={discussion.sponsored ? `ad-${discussion.promotion_id}` : discussion.id} discussion={discussion} />)}
       <div ref={sentinel} className="feed-sentinel" />
       {isFetchingNextPage && <div className="feed-loading-more">Loading more…</div>}
       {hasNextPage && !isFetchingNextPage && <button type="button" className="button button-outline feed-load-more" onClick={() => void fetchNextPage()}>Load more</button>}

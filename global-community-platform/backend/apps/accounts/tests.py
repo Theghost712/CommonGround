@@ -187,5 +187,5 @@ class LoginRateLimitTests(APITestCase):
 class ThrottleSettingsTests(APITestCase):
     def test_rates_and_proxy_count_are_configured(self):
         rates = settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
-        self.assertEqual(set(rates), {"anon", "user", "auth", "contacts", "uploads", "reports", "account_email", "calls"})
+        self.assertEqual(set(rates), {"anon", "user", "auth", "contacts", "uploads", "reports", "account_email", "calls", "payments"})
         self.assertIsInstance(settings.REST_FRAMEWORK["NUM_PROXIES"], int)

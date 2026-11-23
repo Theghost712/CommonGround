@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     "apps.calls",
     "apps.stories",
     "apps.safety",
+    "apps.monetization",
 ]
 MIDDLEWARE = [
     "apps.common.health.HealthCheckMiddleware",  # first: probes use internal IPs/plain HTTP
@@ -250,6 +251,7 @@ REST_FRAMEWORK = {
         "account_email": os.getenv("THROTTLE_ACCOUNT_EMAIL_RATE", "5/hour"),
         # Starting voice/video calls (stops ring-spamming someone).
         "calls": os.getenv("THROTTLE_CALLS_RATE", "30/hour"),
+        "payments": os.getenv("THROTTLE_PAYMENTS_RATE", "30/hour"),
     },
     # How many reverse proxies sit in front of Django. 0 = trust only REMOTE_ADDR.
     # Must be explicit: DRF's default (None) trusts the raw X-Forwarded-For header,
@@ -325,6 +327,26 @@ else:
             "KEY_PREFIX": "commonground",
         }
     }
+
+# Money: tips, sponsored posts and referral rewards (apps/monetization).
+# Payments go through Flutterwave hosted checkout (mobile money and cards). Without a
+# secret key, development uses a test gateway that pays instantly; production refuses.
+FLUTTERWAVE_SECRET_KEY = os.getenv("FLUTTERWAVE_SECRET_KEY", "").strip()
+FLUTTERWAVE_SECRET_HASH = os.getenv("FLUTTERWAVE_SECRET_HASH", "").strip()  # webhook "verif-hash"
+FLUTTERWAVE_PAYMENT_OPTIONS = os.getenv("FLUTTERWAVE_PAYMENT_OPTIONS", "mobilemoneytanzania, card")
+MONETIZATION_CURRENCY = os.getenv("MONETIZATION_CURRENCY", "TZS")
+TIP_MIN_AMOUNT = int(os.getenv("TIP_MIN_AMOUNT", "500"))
+TIP_MAX_AMOUNT = int(os.getenv("TIP_MAX_AMOUNT", "1000000"))
+# The platform's share of each tip, in percent. The creator gets the rest.
+TIP_PLATFORM_FEE_PERCENT = int(os.getenv("TIP_PLATFORM_FEE_PERCENT", "10"))
+PAYOUT_MIN_AMOUNT = int(os.getenv("PAYOUT_MIN_AMOUNT", "5000"))
+PROMOTION_DAILY_PRICE = int(os.getenv("PROMOTION_DAILY_PRICE", "3000"))
+PROMOTION_MAX_DAYS = int(os.getenv("PROMOTION_MAX_DAYS", "30"))
+# Sponsored posts wait for a staff review unless this is on.
+PROMOTION_AUTO_APPROVE = os.getenv("PROMOTION_AUTO_APPROVE", "False").lower() == "true"
+# Ad credit for the inviter when someone they invited confirms their email.
+REFERRAL_REWARD_AMOUNT = int(os.getenv("REFERRAL_REWARD_AMOUNT", "1000"))
+REFERRAL_MONTHLY_REWARD_LIMIT = int(os.getenv("REFERRAL_MONTHLY_REWARD_LIMIT", "30"))
 
 # Links in account emails (reset password, confirm email) point at the frontend.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")

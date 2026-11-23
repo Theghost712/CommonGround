@@ -41,9 +41,16 @@ def _expire_calls():
     expire_stale_group_calls()
 
 
+def _check_payments():
+    from apps.monetization.services import check_pending_payments
+
+    check_pending_payments()
+
+
 # (name, interval in seconds, function)
 JOBS = [
     ("expire_calls", 60, _expire_calls),
+    ("check_payments", 300, _check_payments),
     ("process_videos", 120, _process_videos),
     ("event_reminders", 300, _command("send_event_reminders")),
     ("purge_stories", 3600, _command("purge_expired_stories")),

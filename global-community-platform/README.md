@@ -51,6 +51,13 @@ A community discussion platform built with **React 19 + TypeScript + Vite** and 
 **Events**
 - Community events with RSVPs, attendee lists, cancellation, a calendar view, and reminders sent by a scheduled management command.
 
+**Money and growth**
+- **Tips**: members tip a post or its author from the post's ⋯ menu or the *Tip* button, paying with M-Pesa, Mixx by Yas (Tigo Pesa), Airtel Money, HaloPesa or a card on Flutterwave's hosted page. The creator gets 90% (`TIP_PLATFORM_FEE_PERCENT`), sees it on `/earnings` and asks for a payout to mobile money, which staff send and mark paid in Django admin.
+- **Sponsored posts**: a member promotes one of their public posts for 1–30 days (`PROMOTION_DAILY_PRICE` per day). After a staff review it appears in other members' *For you* feed marked "Sponsored", with view and click counts for the advertiser. A rejected promotion is refunded as ad credit.
+- **Referral rewards**: each member's invite link (`/register?invite=<username>`) earns them ad credit when the friend confirms their email, with WhatsApp/Facebook/X sharing and a monthly top-inviters list.
+- **Search engines and link previews**: public discussions and communities can be read signed out, with server-filled titles, descriptions, Open Graph cards and schema.org data, plus `/sitemap.xml` and `/robots.txt`.
+- Payments are confirmed with the gateway, never from the browser, and every balance change is a ledger entry. Set-up: `docs/DEPLOY.md`, "Payments".
+
 **Admin**
 - Branded Django admin with a dashboard of platform stats and community approval actions.
 

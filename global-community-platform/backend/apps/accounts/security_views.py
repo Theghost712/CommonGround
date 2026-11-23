@@ -164,6 +164,9 @@ class EmailVerifyView(APIView):
         else:
             message = "Thanks! Your email address is confirmed."
         UserProfile.objects.update_or_create(user=user, defaults={"email_verified_at": timezone.now()})
+        from apps.monetization.services import reward_referral
+
+        reward_referral(user)  # credits whoever invited them, once
         return no_store(Response({"detail": message, "email": user.email}))
 
 

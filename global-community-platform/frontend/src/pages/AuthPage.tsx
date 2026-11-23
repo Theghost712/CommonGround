@@ -6,12 +6,18 @@ import '../account-security.css'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../services/api'
 
+/** Where to go after signing in: an in-app path from ?next=, never another site. */
+export function safeNext(value: string | null): string {
+  return value && /^\/(?!\/)[\w\-/.?=&%]*$/.test(value) && !value.startsWith('/login') && !value.startsWith('/register') ? value : '/home'
+}
+
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const isRegister = mode === 'register'
   const { login, register, completeTwoFactor } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   // Arrived through a friend's invite link (…/register?invite=username).
+  const next = safeNext(params.get('next'))
   const invitedBy = isRegister ? (params.get('invite') || '').trim().replace(/^@/, '').slice(0, 150) : ''
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -30,7 +36,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         const pending = await login(form.username, form.password)
         if (pending) { setChallenge(pending.challenge); setCode(''); return }
       }
-      navigate('/home')
+      navigate(next)
     } catch (err) { setError(getErrorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -40,7 +46,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     try {
       const { recovery_codes_left: left } = await completeTwoFactor(challenge, code)
       if (left !== undefined && left <= 3) window.alert(`You have ${left} recovery code${left === 1 ? '' : 's'} left. Create new ones in Account security.`)
-      navigate('/home')
+      navigate(next)
     } catch (err) {
       const status = (err as { response?: { status?: number } }).response?.status
       if (status === 401) { setChallenge(''); setForm((current) => ({ ...current, password: '' })) }

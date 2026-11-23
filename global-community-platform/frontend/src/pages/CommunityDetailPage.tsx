@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api, getErrorMessage } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import '../community-management.css'
 import DiscussionCard from '../components/DiscussionCard'
 import CommunityEventsPanel from '../components/CommunityEventsPanel'
@@ -17,6 +18,7 @@ const toList = <T,>(data: Paginated<T> | T[] | undefined): T[] => !data ? [] : A
 
 export default function CommunityDetailPage() {
   const { id } = useParams()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('discussions')
   const [notice, setNotice] = useState('')
@@ -120,6 +122,7 @@ export default function CommunityDetailPage() {
       <div className="community-hero-action">
         {community.is_member ? <>{community.my_role === 'owner' ? <span className="owner-label">Community owner</span> : <button className="button button-outline" disabled={leaveMutation.isPending} onClick={() => { if (window.confirm('Leave this community?')) leaveMutation.mutate() }}>Leave community</button>}</>
           : community.membership_status === 'pending' ? <span className="status-pill status-pending">Request pending</span>
+            : !user ? <Link className="button button-primary" to={`/register?next=${encodeURIComponent(`/communities/${id}`)}`}>Join community <ArrowRight size={16} /></Link>
             : <button className="button button-primary" disabled={joinMutation.isPending || community.visibility === 'private'} onClick={() => joinMutation.mutate()}>{community.visibility === 'restricted' ? 'Request to join' : 'Join community'} <ArrowRight size={16} /></button>}
       </div>
     </section>

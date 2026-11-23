@@ -58,6 +58,9 @@ VAPID_SUBJECT=mailto:admin@commonground.example
 # Encrypts authenticator-app (2FA) secrets. Optional; defaults to DJANGO_SECRET_KEY.
 # Set it so the secret key can be rotated without switching off everyone's 2FA.
 TWO_FACTOR_ENCRYPTION_KEY=<another long random string>
+# Money (tips and sponsored posts). See "Payments" below. Without the key, payments are off.
+FLUTTERWAVE_SECRET_KEY=FLWSECK-...
+FLUTTERWAVE_SECRET_HASH=<a long random string, also entered in the Flutterwave dashboard>
 ```
 
 Keep `.env` readable only by the app user: `chmod 600 /srv/commonground/.env`.
@@ -106,6 +109,65 @@ Check: `curl https://commonground.example/api/v1/health/` → `{"status": "ok", 
   `GROUP_CALL_MAX_PARTICIPANTS` (default 8). Each person uploads one stream per
   participant, so large video calls need good upload bandwidth; TURN matters here too.
 
+### Payments: tips and sponsored posts
+
+Members pay on a Flutterwave-hosted page with M-Pesa, Mixx by Yas (Tigo Pesa), Airtel
+Money, HaloPesa or a card. CommonGround never sees PINs or card numbers.
+
+1. Open a Flutterwave business account for Tanzania and complete its verification (KYC).
+   Enable **Mobile money Tanzania** and cards for collections.
+2. Copy the **secret key** (Settings → API keys) into `FLUTTERWAVE_SECRET_KEY`. Use the
+   test key first: test payments go through without real money.
+3. Settings → Webhooks: set the URL to `https://<your domain>/api/v1/payments/webhook/flutterwave/`
+   and a **secret hash** (any long random string). Put the same string in `FLUTTERWAVE_SECRET_HASH`.
+4. Restart. `/api/v1/money/config/` should show `"enabled": true, "test_mode": false`.
+
+Each payment is confirmed by asking Flutterwave directly (on return to the site, on
+the webhook, and every 5 minutes by the background jobs), and the amount and currency
+must match. The webhook alone can't mark anything paid.
+
+Prices and rules, all optional (defaults shown):
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `MONETIZATION_CURRENCY` | `TZS` | Currency of every price and balance |
+| `TIP_MIN_AMOUNT` / `TIP_MAX_AMOUNT` | `500` / `1000000` | Allowed tip size |
+| `TIP_PLATFORM_FEE_PERCENT` | `10` | CommonGround's share of each tip; the creator gets the rest |
+| `PAYOUT_MIN_AMOUNT` | `5000` | Smallest payout to mobile money |
+| `PROMOTION_DAILY_PRICE` | `3000` | Price of a sponsored post per day |
+| `PROMOTION_MAX_DAYS` | `30` | Longest promotion |
+| `PROMOTION_AUTO_APPROVE` | `False` | `True` skips the staff review of sponsored posts |
+| `REFERRAL_REWARD_AMOUNT` | `1000` | Ad credit for the inviter when an invited member confirms their email |
+| `REFERRAL_MONTHLY_REWARD_LIMIT` | `30` | Most referral rewards one member can earn per month |
+
+**Staff work, in Django admin → Money:**
+
+- *Sponsored posts*: select the ones *Waiting for review* → **Approve**. To refuse one,
+  open it, write the *Rejection reason*, save, then select it → **Reject**. The member
+  gets the full price back as ad credit and is told why.
+- *Payout requests*: send the money from your Flutterwave balance (Transfers → mobile
+  money) or your business M-Pesa, write the receipt number in *Note*, save, then
+  **Mark as paid**. **Reject** returns the money to the member's earnings.
+- *Payments*, *Tips* and *Ledger entries* are read-only records of every shilling.
+  Balances are the sum of ledger entries and are never edited by hand.
+
+Tips and sponsored posts are income for the business: check with an accountant about
+VAT and income tax, and add advertising rules to your terms of use (no scams, no
+misleading health or money claims) before switching payments on.
+
+### Search engines and link previews
+
+Public discussions and communities can be read signed out. For `/discussions/<id>` and
+`/communities/<id>`, Django fills the page with the title, description, preview image
+(Open Graph / Twitter cards) and text, so Google can index them and WhatsApp/Facebook/X
+show a card when a link is shared. `/sitemap.xml` lists public communities and posts in
+public communities; `/robots.txt` keeps private pages out. Posts on members' own
+profiles get link previews but are marked `noindex`. Nothing in private or restricted
+communities, or from private accounts, is ever shown.
+
+`deploy/nginx.conf` sends those paths to Django; keep that block if you edit the file.
+After going live, add the site in Google Search Console and submit `https://<your domain>/sitemap.xml`.
+
 ## 5. Go-live checklist
 
 - [ ] `deploy/manage.sh check --deploy` shows no issues
@@ -115,6 +177,9 @@ Check: `curl https://commonground.example/api/v1/health/` → `{"status": "ok", 
 - [ ] Two phones on **different networks** (e.g. Wi-Fi and mobile data) can make a video call (needs TURN)
 - [ ] Upload a photo post, a video post and a story from a phone
 - [ ] A staff account opens `/moderation`; a report from another account appears there
+- [ ] With Flutterwave **test** keys: tip a post, promote a post, approve it in admin, see it as "Sponsored" in another account's feed; then switch to live keys
+- [ ] Share a public discussion link in WhatsApp: a preview card with its title appears
+- [ ] Sitemap submitted in Google Search Console
 - [ ] Database backups run daily and a restore was tested
 - [ ] `media/` (uploads) is backed up too
 - [ ] Error logs are collected (`journalctl -u commonground`); consider Sentry

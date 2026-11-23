@@ -20,6 +20,9 @@ export type Discussion = {
   poll?: Poll | null
   created_at: string
   updated_at: string
+  /** Set on posts from /promotions/feed/: shown with a "Sponsored" label. */
+  sponsored?: boolean
+  promotion_id?: number
 }
 
 export type PollOption = { id: number; text: string; votes: number | null; percent: number | null }

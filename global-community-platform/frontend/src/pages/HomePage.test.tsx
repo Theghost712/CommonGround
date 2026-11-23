@@ -32,6 +32,7 @@ describe('HomePage', () => {
       if (url === '/discussions/categories/') return { data: [] }
       if (url === '/discussions/') return config?.params?.feed === 'following' ? page([discussion(2, 'From people I follow')]) : page([discussion(1, 'Everyone post')])
       if (url === '/discussions/trending/') return page([discussion(3, 'Hot post')])
+      if (url === '/promotions/feed/') return { data: [] }
       throw new Error(url)
     })
   })
@@ -43,6 +44,20 @@ describe('HomePage', () => {
     expect(await screen.findByText('juma')).toBeInTheDocument()
     expect(screen.getByText(/What's on your mind, Amani\?/)).toBeInTheDocument()
     expect(await screen.findByText('Suggested for you')).toBeInTheDocument()
+  })
+
+  it('puts a sponsored post after the third post, labelled Sponsored', async () => {
+    const base = api.get.getMockImplementation()!
+    api.get.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url === '/discussions/' && !config?.params?.feed) return page([1, 2, 3, 4].map((n) => discussion(n, `Post ${n}`)))
+      if (url === '/promotions/feed/') return { data: [{ ...discussion(50, 'Visit our shop'), author_username: 'duka', sponsored: true, promotion_id: 7 }] }
+      return base(url, config)
+    })
+    renderWithProviders(<HomePage />)
+    const ad = await screen.findByRole('heading', { name: 'Visit our shop' })
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    expect(headings.slice(0, 5)).toEqual(['Post 1', 'Post 2', 'Post 3', 'Visit our shop', 'Post 4'])
+    expect(ad.closest('article')).toHaveTextContent('Sponsored')
   })
 
   it('switches between For you, Following and Trending', async () => {

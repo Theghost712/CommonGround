@@ -16,6 +16,7 @@ import {
   MailWarning,
   Clapperboard,
   Gavel,
+  Wallet,
 } from 'lucide-react'
 import { Suspense, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -88,6 +89,7 @@ function AppLayoutContent() {
       <div className="workspace-label">YOUR ACCOUNT</div>
       <NavLink to="/bookmarks" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Bookmark size={18} /><span>Saved discussions</span></NavLink>
       <NavLink to="/notifications" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Bell size={18} /><span>Notifications</span>{unreadCount > 0 && <span className="notification-nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}</NavLink>
+      <NavLink to="/earnings" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Wallet size={18} /><span>Earnings & invites</span></NavLink>
       <NavLink to="/profile" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><UserRound size={18} /><span>My profile</span></NavLink>
       {user?.can_moderate && <NavLink to="/moderation" onClick={closeMenu} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}><Gavel size={18} /><span>Moderation</span></NavLink>}
       <div className="sidebar-bottom">

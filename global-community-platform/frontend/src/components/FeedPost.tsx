@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { BellOff, Bookmark, FileText, Flag, Heart, Link2, MessageCircle, MoreHorizontal, PenLine, Send, SquareArrowOutUpRight } from 'lucide-react'
+import { BellOff, Bookmark, Coins, FileText, Flag, Heart, Link2, Megaphone, MessageCircle, MoreHorizontal, PenLine, Send, SquareArrowOutUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api, getErrorMessage } from '../services/api'
@@ -13,6 +13,8 @@ import VideoPlayer from './VideoPlayer'
 import '../media-posts.css'
 import ReportDialog from './ReportDialog'
 import RichText from './RichText'
+import { PromoteDialog, TipDialog } from './MoneyDialogs'
+import { recordPromotion } from '../services/money'
 
 export function timeAgo(value: string, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(value).getTime()) / 1000))
@@ -52,8 +54,22 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
   const [toast, setToast] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [money, setMoney] = useState<'tip' | 'promote' | null>(null)
   const lastTap = useRef(0)
   const menuRef = useRef<HTMLDivElement>(null)
+  const articleRef = useRef<HTMLElement>(null)
+  const promotionId = discussion.sponsored ? discussion.promotion_id : undefined
+
+  // A sponsored post counts as seen once half of it has been on screen.
+  useEffect(() => {
+    const node = articleRef.current
+    if (!promotionId || !node || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) { recordPromotion(promotionId, 'seen'); observer.disconnect() }
+    }, { threshold: 0.5 })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [promotionId])
 
   // Server data wins whenever the feed refetches.
   useEffect(() => {
@@ -162,12 +178,12 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
   const longBody = discussion.body.length > 140
   const postUrl = `/discussions/${discussion.id}`
 
-  return <article className="feed-post" aria-label={`Post by ${discussion.author_username}: ${discussion.title || discussion.body.slice(0, 80) || 'photo'}`}>
+  return <article ref={articleRef} onClickCapture={promotionId ? (event) => { if ((event.target as HTMLElement).closest('a')) recordPromotion(promotionId, 'click') } : undefined} className={`feed-post ${promotionId ? 'is-sponsored' : ''}`} aria-label={`Post by ${discussion.author_username}: ${discussion.title || discussion.body.slice(0, 80) || 'photo'}`}>
     <header className="feed-post-header">
       <UserLink username={discussion.author_username} className="feed-avatar-link"><span className="feed-avatar-ring"><Avatar person={author} size={34} /></span></UserLink>
       <div className="feed-post-who">
         <div><UserLink username={discussion.author_username}><strong>{discussion.author_username}</strong></UserLink><span className="feed-dot">•</span><time dateTime={discussion.created_at} title={new Date(discussion.created_at).toLocaleString()}>{timeAgo(discussion.created_at)}</time></div>
-        {discussion.community_name ? <Link to={`/communities/${discussion.community}`} className="feed-post-place">{discussion.community_name}</Link> : <span className="feed-post-place">{discussion.category}</span>}
+        {promotionId ? <span className="feed-post-place feed-sponsored">Sponsored</span> : discussion.community_name ? <Link to={`/communities/${discussion.community}`} className="feed-post-place">{discussion.community_name}</Link> : <span className="feed-post-place">{discussion.category}</span>}
       </div>
       <div className="feed-menu" ref={menuRef}>
         <button type="button" className="icon-button" aria-label="More options" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreHorizontal size={20} /></button>
@@ -175,6 +191,8 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
           <Link role="menuitem" to={postUrl}><SquareArrowOutUpRight size={15} /> Go to post</Link>
           <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); void copyLink() }}><Link2 size={15} /> Copy link</button>
           {own && <Link role="menuitem" to={`${postUrl}/edit`}><PenLine size={15} /> Edit</Link>}
+          {own && <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setMoney('promote') }}><Megaphone size={15} /> Promote post</button>}
+          {!own && <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setMoney('tip') }}><Coins size={15} /> Send a tip</button>}
           {!own && <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); void api.put(`/safety/mutes/${encodeURIComponent(discussion.author_username)}/`, { posts: true, stories: false }).then(() => { setToast(`Muted ${discussion.author_username}. They won't know.`); queryClient.invalidateQueries({ queryKey: ['discussions'] }) }).catch((err) => setToast(getErrorMessage(err))) }}><BellOff size={15} /> Mute {discussion.author_username}</button>}
           {!own && <button role="menuitem" type="button" className="danger" onClick={() => { setMenuOpen(false); setReporting(true) }}><Flag size={15} /> Report post</button>}
         </div>}
@@ -214,5 +232,7 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
     </div>
     {toast && <div className="feed-toast" role="status">{toast}</div>}
     {reporting && <ReportDialog targetType="post" targetId={discussion.id} onClose={() => setReporting(false)} />}
+    {money === 'tip' && <TipDialog username={discussion.author_username} displayName={discussion.author_display_name} discussionId={discussion.id} onClose={() => setMoney(null)} />}
+    {money === 'promote' && <PromoteDialog discussionId={discussion.id} onClose={() => setMoney(null)} />}
   </article>
 }
