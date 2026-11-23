@@ -33,7 +33,10 @@ def spa_index(request):
     index = settings.FRONTEND_DIST / "index.html"
     if not index.is_file():
         raise Http404("Frontend build not found.")
-    response = HttpResponse(index.read_bytes(), content_type="text/html; charset=utf-8")
+    from .previews import render_index
+
+    html = render_index(request, index.read_text(encoding="utf-8"))
+    response = HttpResponse(html, content_type="text/html; charset=utf-8")
     response["Cache-Control"] = "no-cache"
     response["Content-Security-Policy"] = content_security_policy()
     response["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=(), payment=()"

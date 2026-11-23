@@ -243,3 +243,13 @@ fieldset .form-row { padding: 12px 14px; border-bottom: 1px solid #f2f4f7; }
   .cg-table th:nth-child(3), .cg-table td:nth-child(3) { display: none; }
   .cg-add { opacity: 1; }
 }
+/* Free plan usage */
+.cg-usage { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.cg-usage-item { display: grid; gap: 6px; }
+.cg-usage-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; }
+.cg-usage-top span { color: var(--cg-text-2); font-variant-numeric: tabular-nums; }
+.cg-usage-bar { height: 8px; border-radius: 999px; background: #eef0f3; overflow: hidden; }
+.cg-usage-bar i { display: block; height: 100%; border-radius: 999px; background: #17b26a; }
+.cg-usage-item.is-warn .cg-usage-bar i { background: #f79009; }
+.cg-usage-item.is-danger .cg-usage-bar i { background: #f04438; }
+.cg-usage-item small { font-size: 12px; }

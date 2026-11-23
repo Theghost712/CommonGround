@@ -114,7 +114,13 @@ def admin_dashboard_stats(request):
                                 "staff": member.is_staff, "active": member.is_active,
                                 "url": reverse("admin:auth_user_change", args=[member.pk])})
 
+    usage = []
+    if user.is_superuser:
+        from apps.common.usage import usage_summary
+
+        usage = usage_summary()
     dashboard = {
+        "usage": usage,
         "today": timezone.localdate(),
         "attention": attention, "open_items": open_items,
         "kpis": kpis, "recent_reports": recent_reports, "new_members": new_members,

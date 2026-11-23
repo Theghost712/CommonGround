@@ -145,3 +145,36 @@ class SupabaseStorage(Storage):
         """Cheap health probe: can we see the bucket?"""
         status, _, _ = self._request("GET", f"/bucket/{self.bucket}")
         return status == 200
+
+    # ------------------------------------------------------------ housekeeping
+    def list_folder(self, prefix="", offset=0, limit=1000):
+        status, _, body = self._request(
+            "POST", f"/object/list/{self.bucket}",
+            json.dumps({"prefix": prefix, "limit": limit, "offset": offset, "sortBy": {"column": "name", "order": "asc"}}).encode(),
+            {"Content-Type": "application/json"},
+        )
+        self._ensure(status, body, "List", prefix or "/")
+        return json.loads(body or b"[]")
+
+    def walk(self, prefix="", max_objects=50_000):
+        """Yield (name, size, updated_at) for every object under prefix (folders recursed)."""
+        seen = 0
+        stack = [prefix.strip("/")]
+        while stack:
+            folder = stack.pop()
+            offset = 0
+            while True:
+                entries = self.list_folder(folder, offset=offset)
+                for entry in entries:
+                    path = f"{folder}/{entry['name']}" if folder else entry["name"]
+                    if entry.get("id") is None:  # a folder
+                        stack.append(path)
+                        continue
+                    metadata = entry.get("metadata") or {}
+                    seen += 1
+                    yield path, int(metadata.get("size") or 0), entry.get("updated_at") or entry.get("created_at") or ""
+                    if seen >= max_objects:
+                        return
+                if len(entries) < 1000:
+                    break
+                offset += len(entries)

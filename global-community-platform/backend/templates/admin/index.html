@@ -38,6 +38,21 @@
     </ul>
   </section>
 
+  {% if d.usage %}
+  <section class="cg-card" aria-labelledby="usage-title">
+    <div class="cg-card-head"><h2 id="usage-title">Free plan usage</h2><span class="cg-muted">Stay under the limits to keep hosting free</span></div>
+    <div class="cg-usage">
+      {% for u in d.usage %}
+      <div class="cg-usage-item is-{{ u.level }}">
+        <div class="cg-usage-top"><strong>{{ u.label }}</strong><span>{% if u.used is None %}not measured yet{% elif u.limit %}{{ u.used|filesizeformat }} of {{ u.limit|filesizeformat }}{% else %}{{ u.used }}{% endif %}</span></div>
+        {% if u.limit and u.pct is not None %}<div class="cg-usage-bar" role="progressbar" aria-valuenow="{{ u.pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ u.label }} used"><i style="width:{{ u.pct }}%"></i></div>{% endif %}
+        <small class="cg-muted">{{ u.hint }}</small>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="cg-kpis" aria-label="Key figures">
     {% for kpi in d.kpis %}
     <a class="cg-card cg-kpi" href="{{ kpi.url }}">

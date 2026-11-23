@@ -158,7 +158,7 @@ class ChatMediaUploadView(APIView):
         try:
             if kind == Message.PHOTO:
                 source = claimed.download() if claimed else upload
-                full, thumb, (width, height) = process_image(source, max_size=(1600, 1600), thumb_size=(480, 480))
+                full, thumb, (width, height) = process_image(source, max_size=(1280, 1280), thumb_size=(480, 480))
                 message.media.save(full.name, full, save=False)
                 message.thumbnail.save(thumb.name, thumb, save=False)
                 message.width, message.height = width, height

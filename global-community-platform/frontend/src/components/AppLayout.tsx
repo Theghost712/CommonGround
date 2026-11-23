@@ -27,6 +27,7 @@ import { useNotificationAlerts } from '../context/notificationAlerts'
 import { CallProvider } from '../context/CallContext'
 import CallScreen from './CallScreen'
 import GroupCallScreen, { GroupCallInvite } from './GroupCallScreen'
+import InstallPrompt from './InstallPrompt'
 import { GroupCallProvider } from '../context/GroupCallContext'
 import { api, getErrorMessage } from '../services/api'
 import '../account-security.css'
@@ -119,6 +120,7 @@ export default function AppLayout() {
             <CallScreen />
             <GroupCallScreen />
             <GroupCallInvite />
+            <InstallPrompt />
           </GroupCallProvider>
         </CallProvider>
       </NotificationsProvider>

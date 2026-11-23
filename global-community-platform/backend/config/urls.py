@@ -40,6 +40,7 @@ from apps.messaging import media as chat_media
 from apps.discussions import feed
 from apps.common.search import SearchView
 from apps.common.spa import spa_index
+from apps.common.previews import og_image
 from apps.common.uploads import UploadConfigView, UploadRequestView
 
 urlpatterns = [
@@ -103,5 +104,6 @@ urlpatterns = [
     path("api/v1/", include("apps.calls.urls")),
     path("api/v1/", include(router.urls)),
     # Everything else is the React app (client-side routes like /home, /u/amina).
-    re_path(r"^(?!api/|admin/|ws/|static/|media/).*$", spa_index, name="spa"),
+    path("og-image/<int:attachment_id>.jpg", og_image, name="og_image"),
+    re_path(r"^(?!api/|admin/|ws/|static/|media/|og-image/).*$", spa_index, name="spa"),
 ]
