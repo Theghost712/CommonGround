@@ -50,6 +50,7 @@ def _purge_chat():
 # (name, interval in seconds, function)
 JOBS = [
     ("purge_chat", 120, _purge_chat),
+    ("weekly_digest", 86400, lambda: __import__("apps.notifications.digest", fromlist=["send_weekly_digests"]).send_weekly_digests()),
     ("measure_storage", 86400, lambda: __import__("apps.common.usage", fromlist=["measure_storage"]).measure_storage()),
     ("prune_post_views", 86400, lambda: __import__("apps.discussions.feed", fromlist=["prune_post_views"]).prune_post_views()),
     ("expire_calls", 60, _expire_calls),

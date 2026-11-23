@@ -39,6 +39,7 @@ from apps.common.jobs import tick_view
 from apps.messaging import media as chat_media
 from apps.discussions import feed
 from apps.common.search import SearchView
+from apps.notifications.digest import unsubscribe_view as digest_unsubscribe
 from apps.common.spa import spa_index
 from apps.common.previews import og_image
 from apps.common.uploads import UploadConfigView, UploadRequestView
@@ -52,6 +53,7 @@ urlpatterns = [
     path("api/v1/conversations/<int:pk>/messages/<int:message_id>/", chat_media.DeleteMessageView.as_view(), name="chat_message_delete"),
     path("api/v1/chat-media/<int:message_id>/", chat_media.ChatMediaView.as_view(), name="chat_media"),
     path("api/v1/search/", SearchView.as_view(), name="search"),
+    path("api/v1/notifications/digest/unsubscribe/", digest_unsubscribe, name="digest_unsubscribe"),
     path("api/v1/feed/for-you/", feed.ForYouView.as_view(), name="feed_for_you"),
     path("api/v1/feed/views/", feed.RecordViewsView.as_view(), name="feed_views"),
     path("api/v1/discussions/<int:pk>/repost/", feed.RepostView.as_view(), name="discussion_repost"),

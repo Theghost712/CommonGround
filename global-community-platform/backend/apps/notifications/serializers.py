@@ -20,6 +20,6 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
         fields = [
             "messages_enabled", "discussions_enabled", "communities_enabled",
             "mentions_enabled", "system_enabled", "social_enabled",
-            "sound_enabled", "popup_enabled", "updated_at",
+            "sound_enabled", "popup_enabled", "email_digest_enabled", "updated_at",
         ]
         read_only_fields = ["updated_at"]

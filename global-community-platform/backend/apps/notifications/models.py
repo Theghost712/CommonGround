@@ -100,6 +100,9 @@ class NotificationPreference(models.Model):
     # Delivery on this account's devices: a short chime, and a system pop-up when the tab is hidden.
     sound_enabled = models.BooleanField(default=True)
     popup_enabled = models.BooleanField(default=True)
+    # Weekly "what you missed" email (apps/notifications/digest.py).
+    email_digest_enabled = models.BooleanField(default=True)
+    digest_sent_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

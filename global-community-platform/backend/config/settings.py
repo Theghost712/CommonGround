@@ -438,6 +438,8 @@ GROUP_CALL_MAX_PARTICIPANTS = int(os.getenv("GROUP_CALL_MAX_PARTICIPANTS", "8"))
 # Free-plan limits shown in the admin usage meter (Supabase free tier by default).
 FREE_DATABASE_MB = int(os.getenv("FREE_DATABASE_MB", "500"))
 FREE_STORAGE_MB = int(os.getenv("FREE_STORAGE_MB", "1024"))
+# Weekly digest emails per day (Gmail allows ~500 a day in total).
+DIGEST_DAILY_LIMIT = int(os.getenv("DIGEST_DAILY_LIMIT", "200"))
 if os.getenv("CHANNEL_LAYER") == "postgres":
     # PostgreSQL replaces Redis for the shared cache and live events.
     PRODUCTION_REQUIRED_SETTINGS = tuple(name for name in PRODUCTION_REQUIRED_SETTINGS if name != "REDIS_URL")

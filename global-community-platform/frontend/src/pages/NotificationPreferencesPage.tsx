@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Bell, BellRing, Check, MessageCircle, MessageSquare, Users, AtSign, ShieldCheck, UserPlus, Volume2 } from 'lucide-react'
+import { ArrowLeft, Bell, BellRing, Check, MessageCircle, MessageSquare, Users, AtSign, ShieldCheck, UserPlus, Volume2, Mail } from 'lucide-react'
 import { playNotificationSound, popupsSupported, requestPopupPermission } from '../context/notificationAlerts'
 import { Link } from 'react-router-dom'
 import PushCard from '../components/PushCard'
@@ -15,6 +15,7 @@ type Preferences = {
   social_enabled: boolean
   sound_enabled: boolean
   popup_enabled: boolean
+  email_digest_enabled: boolean
 }
 
 const defaults: Preferences = {
@@ -26,6 +27,7 @@ const defaults: Preferences = {
   social_enabled: true,
   sound_enabled: true,
   popup_enabled: true,
+  email_digest_enabled: true,
 }
 
 const options: { key: keyof Preferences; title: string; description: string; icon: typeof Bell }[] = [
@@ -82,6 +84,10 @@ export default function NotificationPreferencesPage() {
         <div className="preference-icon"><BellRing size={18} /></div><div className="preference-copy"><strong>Show pop-ups</strong><span>A system notification while CommonGround is open in a background tab. {permissionText(permission)}</span></div>
         {permission === 'default' && <button type="button" className="text-button" onClick={(event) => { event.preventDefault(); void requestPopupPermission().then(setPermission) }}>Allow pop-ups</button>}
         <input type="checkbox" checked={form.popup_enabled} onChange={(event) => setForm((current) => ({ ...current, popup_enabled: event.target.checked }))} />
+      </label>
+      <label className="preference-row">
+        <div className="preference-icon"><Mail size={18} /></div><div className="preference-copy"><strong>Weekly email summary</strong><span>If you haven't visited for a few days: new followers, unread messages and popular posts. Needs a confirmed email.</span></div>
+        <input type="checkbox" checked={form.email_digest_enabled} onChange={(event) => setForm((current) => ({ ...current, email_digest_enabled: event.target.checked }))} />
       </label>
       {notice && <div className={mutation.isError ? 'error-message' : 'success-message'}>{notice}</div>}
       <div className="preferences-footer"><span>Saved to your account.</span><button className="button button-primary" disabled={mutation.isPending}><Check size={15} /> {mutation.isPending ? 'Saving…' : 'Save preferences'}</button></div>
