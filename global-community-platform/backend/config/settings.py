@@ -343,6 +343,10 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").strip().lower() == "true"
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+if EMAIL_BACKEND.endswith("smtp.EmailBackend") and EMAIL_HOST_USER and not EMAIL_HOST_PASSWORD:
+    # SMTP login prepared but its password (app password / API key) not added yet:
+    # keep emails in the logs instead of failing every send.
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Password-reset links work for 1 hour and only once; email links for 3 days.
 PASSWORD_RESET_TIMEOUT = int(os.getenv("PASSWORD_RESET_TIMEOUT", "3600"))
 EMAIL_LINK_MAX_AGE_SECONDS = int(os.getenv("EMAIL_LINK_MAX_AGE_SECONDS", str(3 * 24 * 3600)))
