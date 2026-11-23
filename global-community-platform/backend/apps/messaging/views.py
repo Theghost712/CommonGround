@@ -126,7 +126,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
     def messages(self, request, pk=None):
         conversation = self.get_object()
         if request.method == "GET":
-            queryset = conversation.messages.filter(deleted_at__isnull=True).select_related("sender").prefetch_related("read_receipts__user")
+            queryset = (conversation.messages.filter(deleted_at__isnull=True).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
+                        .select_related("sender", "shared_post__author").prefetch_related("read_receipts__user", "opens"))
             # Return the most recent 100 messages in chronological order.
             messages = list(queryset.order_by("-created_at", "-id")[:100])
             messages.reverse()
@@ -141,7 +142,9 @@ class ConversationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You can't message this account.")
         if len(body) > 4000:
             raise ValidationError({"body": "Message cannot exceed 4000 characters."})
-        message = Message.objects.create(conversation=conversation, sender=request.user, body=body)
+        from .media import expiry_for
+
+        message = Message.objects.create(conversation=conversation, sender=request.user, body=body, expires_at=expiry_for(conversation))
         MessageReadReceipt.objects.get_or_create(message=message, user=request.user)
         touch_conversation(conversation.id)
         message = Message.objects.select_related("sender", "conversation").get(pk=message.pk)

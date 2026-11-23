@@ -40,6 +40,7 @@ MAX_SECONDS = 10 * 60
 TARGETS = {
     "discussions.DiscussionAttachment": "file",
     "stories.Story": "media",
+    "messaging.Message": "media",
 }
 
 _executor = None
@@ -212,8 +213,10 @@ def process(label, pk):
         updates.update(content_type="video/mp4", size=size, width=width, height=height)
         if duration_ms:
             updates["duration_ms"] = duration_ms
-    elif duration_ms:
+    elif label == "stories.Story" and duration_ms:
         updates["duration_ms"] = min(duration_ms, 60_000)
+    elif duration_ms:
+        updates["duration_ms"] = duration_ms
     # Only switch files if the row still exists and still points at the original.
     changed = model.objects.filter(pk=pk, **{field_name: old_name}).update(**updates)
     if changed:

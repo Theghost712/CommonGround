@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { api } from './api'
 
-export type UploadPurpose = 'post-photo' | 'post-video' | 'story-photo' | 'story-video'
+export type UploadPurpose = 'post-photo' | 'post-video' | 'story-photo' | 'story-video' | 'chat-photo' | 'chat-video' | 'chat-voice'
 export type UploadConfig = { direct: boolean; max_photo_mb: number; max_video_mb: number; max_story_video_mb: number }
 
 const FALLBACK: UploadConfig = { direct: false, max_photo_mb: 15, max_video_mb: 100, max_story_video_mb: 50 }
@@ -19,6 +19,7 @@ export function getUploadConfig(): Promise<UploadConfig> {
 const BY_EXTENSION: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
   mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+  m4a: 'audio/mp4', ogg: 'audio/ogg', mp3: 'audio/mpeg', weba: 'audio/webm',
 }
 
 export function contentTypeOf(file: Blob & { name?: string }): string {

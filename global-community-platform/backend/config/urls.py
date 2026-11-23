@@ -36,11 +36,25 @@ router.register("events", CommunityEventViewSet, basename="event")
 
 from apps.common.health import health
 from apps.common.jobs import tick_view
+from apps.messaging import media as chat_media
+from apps.discussions import feed
+from apps.common.search import SearchView
 from apps.common.spa import spa_index
 from apps.common.uploads import UploadConfigView, UploadRequestView
 
 urlpatterns = [
     path("api/v1/health/", health, name="health"),
+    path("api/v1/conversations/<int:pk>/media/", chat_media.ChatMediaUploadView.as_view(), name="chat_media_upload"),
+    path("api/v1/conversations/<int:pk>/share-post/", chat_media.SharePostView.as_view(), name="chat_share_post"),
+    path("api/v1/conversations/<int:pk>/disappearing/", chat_media.DisappearingView.as_view(), name="chat_disappearing"),
+    path("api/v1/conversations/<int:pk>/messages/<int:message_id>/open/", chat_media.OpenViewOnceView.as_view(), name="chat_open_once"),
+    path("api/v1/conversations/<int:pk>/messages/<int:message_id>/", chat_media.DeleteMessageView.as_view(), name="chat_message_delete"),
+    path("api/v1/chat-media/<int:message_id>/", chat_media.ChatMediaView.as_view(), name="chat_media"),
+    path("api/v1/search/", SearchView.as_view(), name="search"),
+    path("api/v1/feed/for-you/", feed.ForYouView.as_view(), name="feed_for_you"),
+    path("api/v1/feed/views/", feed.RecordViewsView.as_view(), name="feed_views"),
+    path("api/v1/discussions/<int:pk>/repost/", feed.RepostView.as_view(), name="discussion_repost"),
+    path("api/v1/discussions/<int:pk>/sponsored-click/", feed.SponsoredClickView.as_view(), name="discussion_sponsored_click"),
     path("api/v1/internal/tick/", csrf_exempt(tick_view), name="internal_tick"),
     path("api/v1/uploads/", UploadRequestView.as_view(), name="upload_request"),
     path("api/v1/uploads/config/", UploadConfigView.as_view(), name="upload_config"),

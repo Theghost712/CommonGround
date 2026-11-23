@@ -4,6 +4,7 @@ import { Ban, Bookmark, CalendarDays, Globe, Grid3x3, Heart, List, Lock, MapPin,
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import DiscussionCard from '../components/DiscussionCard'
 import PostGrid from '../components/PostGrid'
+import Highlights from '../components/Highlights'
 import { Avatar, FollowButton, RelationshipChips, formatCount } from '../components/PersonBits'
 import PersonRow from '../components/PersonRow'
 import { openDirectChat } from '../components/UserHoverCard'
@@ -131,6 +132,7 @@ export default function UserProfilePage() {
         </div>
         {person.interests.length > 0 && <div className="up-interests">{person.interests.map((item) => <span key={item}>{item}</span>)}</div>}
       </div>
+      {!person.relationship?.blocked && (self || person.relationship?.can_view !== false) && <Highlights person={person} self={self} />}
     </section>
 
     {watching && activeStories.length > 0 && <Suspense fallback={null}><StoryViewer

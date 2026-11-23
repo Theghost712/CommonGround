@@ -18,6 +18,12 @@ export type Discussion = {
   has_bookmarked: boolean
   attachments: DiscussionAttachment[]
   poll?: Poll | null
+  /** A repost points at the original post (shown inside it). */
+  repost_of?: Discussion | null
+  /** Paid promotion, labelled "Sponsored". */
+  sponsored?: { name: string; has_link: boolean } | null
+  share_count?: number
+  view_count?: number
   created_at: string
   updated_at: string
 }

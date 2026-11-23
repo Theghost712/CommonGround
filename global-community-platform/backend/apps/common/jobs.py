@@ -41,8 +41,16 @@ def _expire_calls():
     expire_stale_group_calls()
 
 
+def _purge_chat():
+    from apps.messaging.media import purge_chat_media
+
+    purge_chat_media()
+
+
 # (name, interval in seconds, function)
 JOBS = [
+    ("purge_chat", 120, _purge_chat),
+    ("prune_post_views", 86400, lambda: __import__("apps.discussions.feed", fromlist=["prune_post_views"]).prune_post_views()),
     ("expire_calls", 60, _expire_calls),
     ("process_videos", 120, _process_videos),
     ("event_reminders", 300, _command("send_event_reminders")),

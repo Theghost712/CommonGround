@@ -29,8 +29,26 @@ def visible_stories(viewer):
     return Story.objects.filter(expires_at__gt=timezone.now()).filter(Q(author=viewer) | others).exclude(author_id__in=blocked_user_ids(viewer))
 
 
+def highlight_audience_ok(viewer, story):
+    """May `viewer` see this story as part of its owner's highlights?"""
+    if story.author_id == viewer.pk:
+        return True
+    from apps.safety.services import blocked_user_ids
+
+    if story.author_id in blocked_user_ids(viewer):
+        return False
+    if StoryHiddenFrom.objects.filter(owner_id=story.author_id, hidden_user=viewer).exists():
+        return False
+    if story.audience == Story.CLOSE_FRIENDS and not CloseFriend.objects.filter(owner_id=story.author_id, friend=viewer).exists():
+        return False
+    is_private = getattr(getattr(story.author, "profile", None), "is_private", False)
+    return not is_private or Follow.objects.filter(follower=viewer, following_id=story.author_id).exists()
+
+
 def can_view(viewer, story):
-    return visible_stories(viewer).filter(pk=story.pk).exists()
+    if visible_stories(viewer).filter(pk=story.pk).exists():
+        return True
+    return story.highlight_items.exists() and highlight_audience_ok(viewer, story)
 
 
 def media_url(request, story, viewer, kind="media"):

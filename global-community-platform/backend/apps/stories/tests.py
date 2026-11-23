@@ -229,3 +229,26 @@ class PurgeTests(StoryBase):
         self.assertFalse(Story.objects.filter(pk=expired.pk).exists())
         self.assertTrue(Story.objects.filter(pk=live.pk).exists())
         self.assertFalse(expired.media.storage.exists(path))
+
+
+class HighlightTests(StoryBase):
+    def test_highlights_keep_stories_after_24_hours_for_allowed_viewers(self):
+        story = self.text_story()
+        created = self.as_user(self.author).post("/api/v1/stories/highlights/", {"title": "Holiday", "story_ids": [story.pk]}, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+        Story.objects.filter(pk=story.pk).update(expires_at=timezone.now() - timedelta(hours=1))
+        call_command("purge_expired_stories", stdout=StringIO())
+        self.assertTrue(Story.objects.filter(pk=story.pk).exists(), "highlighted stories survive the clean-up")
+        listed = self.as_user(self.stranger).get(f"/api/v1/stories/highlights/user/{self.author.username}/").data
+        self.assertEqual(listed[0]["title"], "Holiday")
+        self.assertEqual(listed[0]["stories"][0]["id"], story.pk)
+        from apps.accounts.models import UserProfile
+
+        UserProfile.objects.update_or_create(user=self.author, defaults={"is_private": True})
+        self.assertEqual(self.as_user(self.stranger).get(f"/api/v1/stories/highlights/user/{self.author.username}/").data, [], "private: followers only")
+        self.assertEqual(len(self.as_user(self.fan).get(f"/api/v1/stories/highlights/user/{self.author.username}/").data), 1)
+        hid = created.data["id"]
+        self.assertEqual(self.as_user(self.fan).patch(f"/api/v1/stories/highlights/{hid}/", {"title": "x"}, format="json").status_code, 404)
+        self.assertEqual(self.as_user(self.author).patch(f"/api/v1/stories/highlights/{hid}/", {"remove": [story.pk]}, format="json").data, {"deleted": True})
+        call_command("purge_expired_stories", stdout=StringIO())
+        self.assertFalse(Story.objects.filter(pk=story.pk).exists(), "removed from highlights: purged as usual")

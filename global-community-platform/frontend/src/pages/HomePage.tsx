@@ -58,19 +58,23 @@ export default function HomePage() {
   const sentinel = useRef<HTMLDivElement>(null)
 
   const categoriesQuery = useQuery({ queryKey: ['discussion-categories'], queryFn: async () => (await api.get<DiscussionCategory[]>('/discussions/categories/')).data })
+  // "For you" is ranked for each person (no filters); with a search or category it shows the latest matches.
+  const ranked = tab === 'trending' || (tab === 'for-you' && !query && !category)
   const feed = useInfiniteQuery({
     queryKey: [tab === 'trending' ? 'trending-discussions' : 'discussions', 'home', tab, query, category],
     // Chronological feeds use cursor paging (constant cost however far you scroll);
-    // trending is ranked by score, so it keeps page numbers.
-    initialPageParam: tab === 'trending' ? '1' : '',
-    queryFn: async ({ pageParam }) => (await api.get<Paginated<Discussion>>(tab === 'trending' ? '/discussions/trending/' : '/discussions/', {
+    // ranked feeds (For you, trending) use page numbers.
+    initialPageParam: ranked ? '1' : '',
+    queryFn: async ({ pageParam }) => (await api.get<Paginated<Discussion>>(
+      tab === 'trending' ? '/discussions/trending/' : ranked ? '/feed/for-you/' : '/discussions/', {
       params: tab === 'trending'
         ? { page: pageParam, search: query || undefined, category: category || undefined }
+        : ranked ? { page: pageParam }
         : { paginate: 'cursor', cursor: pageParam || undefined, search: query || undefined, category: category || undefined, feed: tab === 'following' ? 'following' : undefined },
     })).data,
     getNextPageParam: (last, pages) => {
       if (!last.next) return undefined
-      if (tab === 'trending') return String(pages.length + 1)
+      if (ranked) return String(pages.length + 1)
       return new URL(last.next, window.location.origin).searchParams.get('cursor') ?? undefined
     },
   })

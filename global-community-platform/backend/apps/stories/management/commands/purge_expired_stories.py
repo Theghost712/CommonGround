@@ -13,7 +13,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         removed = 0
         while True:
-            batch = list(Story.objects.filter(expires_at__lte=timezone.now()).order_by("pk")[: options["batch"]])
+            # Stories saved to a highlight stay (on the owner's profile) after 24 hours.
+            batch = list(Story.objects.filter(expires_at__lte=timezone.now(), highlight_items__isnull=True).order_by("pk")[: options["batch"]])
             if not batch:
                 break
             for story in batch:

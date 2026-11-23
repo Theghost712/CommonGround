@@ -61,11 +61,26 @@ class DiscussionSerializer(serializers.ModelSerializer):
     has_bookmarked = serializers.SerializerMethodField()
     attachments = DiscussionAttachmentSerializer(many=True, read_only=True)
     poll = serializers.SerializerMethodField()
+    repost_of = serializers.SerializerMethodField()
+    sponsored = serializers.SerializerMethodField()
 
     class Meta:
         model = Discussion
-        fields = ["poll", "id", "community", "community_name", "author", "author_username", "author_display_name", "author_avatar_url", "title", "body", "content_html", "category", "comments_count", "reactions_count", "bookmarks_count", "has_reacted", "my_reaction", "has_bookmarked", "attachments", "created_at", "updated_at"]
-        read_only_fields = ["id", "author", "created_at", "updated_at"]
+        fields = ["poll", "repost_of", "sponsored", "share_count", "view_count", "id", "community", "community_name", "author", "author_username", "author_display_name", "author_avatar_url", "title", "body", "content_html", "category", "comments_count", "reactions_count", "bookmarks_count", "has_reacted", "my_reaction", "has_bookmarked", "attachments", "created_at", "updated_at"]
+        read_only_fields = ["id", "author", "created_at", "updated_at", "share_count", "view_count"]
+
+    def get_repost_of(self, obj):
+        original = obj.repost_of if obj.repost_of_id else None
+        if original is None:
+            return None
+        return DiscussionSerializer(original, context=self.context).data
+
+    def get_sponsored(self, obj):
+        from django.utils import timezone
+
+        if obj.sponsored_until and obj.sponsored_until > timezone.now():
+            return {"name": obj.sponsor_name or obj.author.get_full_name() or obj.author.username, "has_link": bool(obj.sponsor_url)}
+        return None
 
     def get_poll(self, obj):
         from .polls import poll_data

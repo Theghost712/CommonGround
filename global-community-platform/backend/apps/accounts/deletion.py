@@ -69,6 +69,10 @@ def _files_owned_by(user):
     attachments = DiscussionAttachment.objects.filter(discussion__author=user) | DiscussionAttachment.objects.filter(uploaded_by=user)
     for attachment in attachments.distinct():
         files += [(f.storage, f.name) for f in (attachment.file, attachment.display, attachment.thumbnail) if f]
+    from apps.messaging.models import Message
+
+    for message in Message.objects.filter(sender=user).exclude(media="", thumbnail=""):
+        files += [(f.storage, f.name) for f in (message.media, message.thumbnail) if f]
     for story in Story.objects.filter(author=user):
         files += [(f.storage, f.name) for f in (story.media, story.thumbnail) if f]
     return list(dict.fromkeys(files))

@@ -24,6 +24,7 @@ const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'))
 const TagPage = lazy(() => import('./pages/TagPage'))
 const AccountSecurityPage = lazy(() => import('./pages/AccountSecurityPage'))
 const ReelsPage = lazy(() => import('./pages/ReelsPage'))
+const SearchPage = lazy(() => import('./pages/SearchPage'))
 const ModerationPage = lazy(() => import('./pages/ModerationPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/AccountRecoveryPages').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('./pages/AccountRecoveryPages').then((m) => ({ default: m.ResetPasswordPage })))
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="/home" element={<HomePage />} />
       <Route path="/explore" element={<ExplorePage />} />
       <Route path="/reels" element={<ReelsPage />} />
+      <Route path="/search" element={<SearchPage />} />
       <Route path="/communities" element={<CommunitiesPage />} />
       <Route path="/communities/:id" element={<CommunityDetailPage />} />
       <Route path="/events-calendar" element={<EventsCalendarPage />} />

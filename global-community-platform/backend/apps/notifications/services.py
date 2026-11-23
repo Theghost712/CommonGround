@@ -159,7 +159,7 @@ def notify_chat_message(message):
             recipient=recipient,
             notification_type=Notification.MESSAGE,
             title=f"New message from {message.sender.username}",
-            body=message.body,
+            body=getattr(message, "preview", message.body),
             target_url=target_url,
             actor=message.sender,
             data={"conversation_id": conversation.id, "message_id": message.id},

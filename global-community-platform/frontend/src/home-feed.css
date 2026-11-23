@@ -185,3 +185,14 @@ button.home-composer-photo{border:0;background:none;cursor:pointer;padding:6px}
   .detail-photos{margin:14px -18px 4px}
 }
 @media(max-width:560px){.post-grid{gap:2px}.post-tile{border-radius:0}}
+/* Search */
+.search-page{max-width:640px;margin:0 auto;padding:12px 12px 40px;display:grid;gap:14px}
+.search-box{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #d0d5dd;border-radius:14px;background:var(--surface,#fff);position:sticky;top:8px;z-index:5;box-shadow:0 4px 14px #0000000d}
+.search-box input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:16px;background:none;color:inherit}
+.search-hint{color:#6b7280;font-size:14px;margin:0;text-align:center}
+.search-section{display:grid;gap:8px}
+.search-section h2{display:flex;align-items:center;gap:6px;margin:6px 0 0;font-size:15px}
+.search-tags{display:flex;flex-wrap:wrap;gap:8px}
+.search-tag{display:grid;padding:8px 12px;border:1px solid #e4e7ec;border-radius:12px;font-weight:700;text-decoration:none;color:inherit}
+.search-tag small,.search-community span,.search-community small{color:#6b7280;font-weight:500;font-size:12.5px}
+.search-community{display:grid;gap:2px;padding:10px 12px;border:1px solid #e4e7ec;border-radius:12px;text-decoration:none;color:inherit}

@@ -17,7 +17,7 @@ let soundOn = false
  * Feed/reels video: plays muted while at least 60% visible, pauses when scrolled away,
  * loads nothing until near the screen (preload="none" + poster), tap to pause, button for sound.
  */
-export default function VideoPlayer({ file, fill = false, className = '' }: { file: DiscussionAttachment; fill?: boolean; className?: string }) {
+export default function VideoPlayer({ file, fill = false, className = '', onProgress }: { file: DiscussionAttachment; fill?: boolean; className?: string; onProgress?: (fraction: number, seconds: number) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(!soundOn)
@@ -69,6 +69,7 @@ export default function VideoPlayer({ file, fill = false, className = '' }: { fi
       onPlay={() => setPlaying(true)}
       onPause={() => setPlaying(false)}
       onClick={toggle}
+      onTimeUpdate={onProgress ? (event) => { const v = event.currentTarget; if (v.duration) onProgress(v.currentTime / v.duration, v.currentTime) } : undefined}
     />
     {!playing && <button type="button" className="video-big-play" aria-label="Play video" onClick={toggle}><Play size={30} fill="currentColor" /></button>}
     <div className="video-controls">

@@ -13,14 +13,27 @@ const MAX_PHOTO_MB = 15
 const UPLOAD_EDGE = 2160
 const CAPTION_LIMIT = 2200
 
-type Draft = { id: string; file: File; preview: string; alt: string }
+type Draft = { id: string; file: File; preview: string; alt: string; filter: string }
+
+/** Photo filters, applied in the browser (canvas) before upload. */
+export const PHOTO_FILTERS: { key: string; label: string; css: string }[] = [
+  { key: 'none', label: 'Original', css: 'none' },
+  { key: 'vivid', label: 'Vivid', css: 'saturate(1.45) contrast(1.08)' },
+  { key: 'warm', label: 'Warm', css: 'sepia(0.25) saturate(1.3) hue-rotate(-8deg)' },
+  { key: 'cool', label: 'Cool', css: 'saturate(1.1) hue-rotate(12deg) brightness(1.03)' },
+  { key: 'fade', label: 'Fade', css: 'contrast(0.85) brightness(1.08) saturate(0.8)' },
+  { key: 'mono', label: 'Mono', css: 'grayscale(1) contrast(1.1)' },
+  { key: 'noir', label: 'Noir', css: 'grayscale(1) contrast(1.45) brightness(0.92)' },
+  { key: 'golden', label: 'Golden', css: 'sepia(0.45) saturate(1.5) brightness(1.04)' },
+]
+const filterCss = (key: string) => PHOTO_FILTERS.find((f) => f.key === key)?.css ?? 'none'
 
 /**
  * Shrink a photo in the browser before upload (JPEG, longest side 2160px). A 12 MB phone
  * photo becomes ~1 MB: much faster on mobile data, and EXIF/GPS never leaves the device.
  * The server still re-processes everything, so this is purely an optimisation.
  */
-export async function shrinkForUpload(file: File, edge = UPLOAD_EDGE): Promise<File> {
+export async function shrinkForUpload(file: File, edge = UPLOAD_EDGE, filter = 'none'): Promise<File> {
   if (typeof createImageBitmap !== 'function' || file.type === 'image/gif') return file
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
@@ -30,10 +43,11 @@ export async function shrinkForUpload(file: File, edge = UPLOAD_EDGE): Promise<F
     canvas.height = Math.round(bitmap.height * scale)
     const context = canvas.getContext('2d')
     if (!context) return file
+    if (filter !== 'none') context.filter = filter
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     bitmap.close?.()
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
-    if (!blob || blob.size >= file.size) return file
+    if (!blob || (filter === 'none' && blob.size >= file.size)) return file
     return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })
   } catch {
     return file // e.g. HEIC on browsers that can't decode it: let the server try
@@ -72,7 +86,7 @@ export default function PostComposer({ onClose }: { onClose: () => void }) {
     setDrafts((current) => {
       const room = MAX_PHOTOS - current.length
       if (images.length > room) setError(`A post can have up to ${MAX_PHOTOS} photos.`)
-      return [...current, ...images.slice(0, room).map((file) => ({ id: `${file.name}-${file.size}-${Math.random()}`, file, preview: URL.createObjectURL(file), alt: '' }))]
+      return [...current, ...images.slice(0, room).map((file) => ({ id: `${file.name}-${file.size}-${Math.random()}`, file, preview: URL.createObjectURL(file), alt: '', filter: 'none' }))]
     })
   }
   const remove = (index: number) => {
@@ -90,12 +104,13 @@ export default function PostComposer({ onClose }: { onClose: () => void }) {
     setSlide(index + direction)
   }
   const setAlt = (index: number, alt: string) => setDrafts((current) => current.map((d, i) => i === index ? { ...d, alt } : d))
+  const setFilter = (index: number, filter: string) => setDrafts((current) => current.map((d, i) => i === index ? { ...d, filter } : d))
 
   const share = useMutation({
     mutationFn: async () => {
       if (!drafts.length) throw new Error('Add at least one photo.')
       const form = new FormData()
-      const files = await Promise.all(drafts.map((d) => shrinkForUpload(d.file)))
+      const files = await Promise.all(drafts.map((d) => shrinkForUpload(d.file, UPLOAD_EDGE, filterCss(d.filter))))
       const config = await getUploadConfig()
       if (config.direct) {
         // Straight to storage, one by one, so a 10-photo post isn't one huge request.
@@ -130,7 +145,7 @@ export default function PostComposer({ onClose }: { onClose: () => void }) {
         <div className="post-composer-stage">
           {current
             ? <>
-                <img src={current.preview} alt={current.alt || 'Selected photo'} />
+                <img src={current.preview} alt={current.alt || 'Selected photo'} style={{ filter: filterCss(current.filter) }} />
                 <div className="post-composer-tools">
                   <button type="button" aria-label="Move photo earlier" disabled={slide === 0} onClick={() => move(slide, -1)}><ArrowLeft size={16} /></button>
                   <span>{slide + 1}/{drafts.length}</span>
@@ -144,6 +159,11 @@ export default function PostComposer({ onClose }: { onClose: () => void }) {
         {drafts.length > 0 && <div className="post-composer-strip">
           {drafts.map((d, index) => <button type="button" key={d.id} className={index === slide ? 'active' : ''} onClick={() => setSlide(index)} aria-label={`Photo ${index + 1}`}><img src={d.preview} alt="" /></button>)}
           {drafts.length < MAX_PHOTOS && <button type="button" className="post-composer-add" onClick={() => fileRef.current?.click()} aria-label="Add more photos"><ImagePlus size={18} /></button>}
+        </div>}
+        {current && <div className="photo-filters" role="radiogroup" aria-label="Photo filter">
+          {PHOTO_FILTERS.map((f) => <button type="button" key={f.key} role="radio" aria-checked={current.filter === f.key} className={current.filter === f.key ? 'active' : ''} onClick={() => setFilter(slide, f.key)}>
+            <img src={current.preview} alt="" style={{ filter: f.css }} /><span>{f.label}</span>
+          </button>)}
         </div>}
         <div className="post-composer-fields">
           {current && <input value={current.alt} onChange={(e) => setAlt(slide, e.target.value)} maxLength={300} placeholder={`Alt text for photo ${slide + 1}: describe it for people who can't see it`} aria-label={`Alt text for photo ${slide + 1}`} />}

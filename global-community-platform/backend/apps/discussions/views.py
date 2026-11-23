@@ -100,7 +100,7 @@ class DiscussionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         from .polls import with_polls
 
-        qs = with_polls(with_stats(visible_discussions(self.request.user), self.request.user), self.request.user).select_related("author", "author__profile", "community").prefetch_related("attachments")
+        qs = with_polls(with_stats(visible_discussions(self.request.user), self.request.user), self.request.user).select_related("author", "author__profile", "community", "repost_of__author", "repost_of__author__profile", "repost_of__community").prefetch_related("attachments", "repost_of__attachments")
         if self.request.query_params.get("feed") == "following":
             # Posts from people the user follows, plus their own (like Instagram's Following feed).
             if not self.request.user.is_authenticated:
@@ -144,6 +144,17 @@ class DiscussionViewSet(viewsets.ModelViewSet):
             use_cursor = self.action == "list" and self.request.query_params.get("paginate") == "cursor"
             self._paginator = FeedCursorPagination() if use_cursor else self.pagination_class()
         return self._paginator
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        # Home feeds (cursor paging) carry one sponsored post per page.
+        if request.query_params.get("paginate") == "cursor" and isinstance(response.data, dict) and "results" in response.data \
+                and not request.query_params.get("author") and not request.query_params.get("community"):
+            from .feed import inject_sponsored
+
+            page = 1 if not request.query_params.get("cursor") else 2
+            response.data["results"] = inject_sponsored(request, list(response.data["results"]), visible_discussions(request.user), page)
+        return response
 
     def perform_create(self, serializer):
         discussion = serializer.save(author=self.request.user)

@@ -16,6 +16,7 @@ import {
   MailWarning,
   Clapperboard,
   Gavel,
+  Search,
 } from 'lucide-react'
 import { Suspense, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -32,6 +33,7 @@ import '../account-security.css'
 
 const links = [
   { to: '/home', label: 'Home feed', icon: Home },
+  { to: '/search', label: 'Search', icon: Search },
   { to: '/explore', label: 'Explore', icon: Compass },
   { to: '/reels', label: 'Reels', icon: Clapperboard },
   { to: '/people', label: 'People', icon: UsersRound },

@@ -13,6 +13,8 @@ import { useCall, type CallKind } from '../context/CallContext'
 import { useGroupCall } from '../context/GroupCallContext'
 import { Phone as PhoneIcon, Video as VideoIcon } from 'lucide-react'
 import '../calls.css'
+import '../media-posts.css'
+import { ChatAttachments, DISAPPEAR_OPTIONS, DisappearingBadge, MessageBody, type ChatMediaMessage } from '../components/ChatMedia'
 
 function CallButtons({ conversationId }: { conversationId: number }) {
   const call = useCall()
@@ -61,7 +63,8 @@ type ChatMember = {
   joined_at: string
   last_read_at: string | null
 }
-type ChatMessage = {
+type ChatMessage = Omit<ChatMediaMessage, 'id' | 'sender' | 'body' | 'kind'> & {
+  kind?: ChatMediaMessage['kind']
   id: number
   conversation: number
   sender: number
@@ -81,6 +84,7 @@ type ChatConversation = {
   title: string
   display_title: string
   created_by: number
+  disappear_seconds?: number
   members: ChatMember[]
   other_user: ChatUser | null
   last_message: ChatMessage | null
@@ -239,7 +243,11 @@ export default function ChatPage() {
       let payload: IncomingEvent
       try { payload = JSON.parse(event.data) as IncomingEvent } catch { return }
       if (payload.type === 'message.created' && payload.message) {
-        queryClient.setQueryData<ChatMessage[]>(['chat-messages', selectedId], (old = []) => old.some((item) => item.id === payload.message!.id) ? old : [...old, payload.message!])
+        const incoming = payload.message
+        // New message, an update (e.g. a view-once was opened) or an unsend.
+        queryClient.setQueryData<ChatMessage[]>(['chat-messages', selectedId], (old = []) => incoming.is_deleted
+          ? old.filter((item) => item.id !== incoming.id)
+          : old.some((item) => item.id === incoming.id) ? old.map((item) => item.id === incoming.id ? incoming : item) : [...old, incoming])
         queryClient.invalidateQueries({ queryKey: ['chat-conversations'] })
         if (payload.message.sender !== user?.id) connectedSocket.send(JSON.stringify({ type: 'mark_read' }))
       }
@@ -325,7 +333,7 @@ export default function ChatPage() {
           {conversationsQuery.isError && <div className="chat-list-error">{getErrorMessage(conversationsQuery.error)}</div>}
           {filteredConversations.map((conversation) => {
             const subtitle = conversation.last_message
-              ? `${conversation.last_message.sender_username === user?.username ? 'You: ' : ''}${conversation.last_message.body}`
+              ? `${conversation.last_message.sender_username === user?.username ? 'You: ' : ''}${conversation.last_message.preview ?? conversation.last_message.body}`
               : conversation.conversation_type === 'group' ? 'Group conversation' : 'Start the conversation'
             const avatarText = conversation.conversation_type === 'group' ? initials(conversation.display_title) : initials(conversation.other_user?.display_name || conversation.display_title)
             return <button key={conversation.id} className={`chat-conversation-item ${selectedId === conversation.id ? 'selected' : ''}`} onClick={() => { setSelectedId(conversation.id); setMobileShowChat(true) }}>
@@ -340,7 +348,7 @@ export default function ChatPage() {
 
       <main className="chat-main">
         {selectedConversation ? <>
-          <header className="chat-header"><button className="chat-mobile-back" onClick={() => setMobileShowChat(false)} aria-label="Back to conversations"><ArrowLeft size={18} /></button><div className={`chat-list-avatar chat-header-avatar ${selectedConversation.conversation_type === 'group' ? 'group' : ''}`}>{initials(selectedConversation.display_title)}</div><div className="chat-header-copy"><h2>{selectedConversation.display_title}</h2><span>{selectedConversation.conversation_type === 'group' ? `${selectedConversation.members.length} participants` : selectedConversation.other_user && onlineUsers.includes(selectedConversation.other_user.id) ? 'Online now' : 'Direct conversation'}</span></div><div className={`socket-indicator ${socketStatus}`} title={`Realtime connection ${socketStatus}`}>{socketStatus === 'connected' ? <Wifi size={15} /> : <WifiOff size={15} />}<span>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</span></div>{selectedConversation.conversation_type === 'direct' ? <CallButtons conversationId={selectedConversation.id} /> : <GroupCallButtons conversationId={selectedConversation.id} />}<button className="icon-button" title="Conversation details" aria-label="Conversation details" onClick={() => setShowDetails(true)}><MoreHorizontal size={19} /></button></header>
+          <header className="chat-header"><button className="chat-mobile-back" onClick={() => setMobileShowChat(false)} aria-label="Back to conversations"><ArrowLeft size={18} /></button><div className={`chat-list-avatar chat-header-avatar ${selectedConversation.conversation_type === 'group' ? 'group' : ''}`}>{initials(selectedConversation.display_title)}</div><div className="chat-header-copy"><h2>{selectedConversation.display_title}</h2><span><DisappearingBadge seconds={selectedConversation.disappear_seconds} /> {selectedConversation.conversation_type === 'group' ? `${selectedConversation.members.length} participants` : selectedConversation.other_user && onlineUsers.includes(selectedConversation.other_user.id) ? 'Online now' : 'Direct conversation'}</span></div><div className={`socket-indicator ${socketStatus}`} title={`Realtime connection ${socketStatus}`}>{socketStatus === 'connected' ? <Wifi size={15} /> : <WifiOff size={15} />}<span>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</span></div>{selectedConversation.conversation_type === 'direct' ? <CallButtons conversationId={selectedConversation.id} /> : <GroupCallButtons conversationId={selectedConversation.id} />}<button className="icon-button" title="Conversation details" aria-label="Conversation details" onClick={() => setShowDetails(true)}><MoreHorizontal size={19} /></button></header>
           <div className="chat-message-area">
             {messagesQuery.isLoading && <div className="chat-list-hint">Loading messages…</div>}
             {messagesQuery.isError && <div className="chat-list-error">{getErrorMessage(messagesQuery.error)}</div>}
@@ -349,14 +357,17 @@ export default function ChatPage() {
               const own = message.sender === user?.id
               const previous = messages[index - 1]
               const showDate = !previous || new Date(previous.created_at).toDateString() !== new Date(message.created_at).toDateString()
+              const dateDivider = showDate && <div className="chat-date-divider"><span>{new Date(message.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>
+              if (message.kind === 'system') return <div key={message.id}>{dateDivider}<div className="chat-system"><span>{message.body}</span></div></div>
+              const isMedia = Boolean(message.kind && message.kind !== 'text')
               return <div key={message.id}>
-                {showDate && <div className="chat-date-divider"><span>{new Date(message.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>}
+                {dateDivider}
                 <div className={`chat-message-row ${own ? 'own' : ''}`}>
                   {!own && <div className="chat-message-avatar">{initials(message.sender_display_name)}</div>}
                   <div className="chat-message-content">
                     {!own && selectedConversation.conversation_type === 'group' && <strong className="chat-sender-name">{message.sender_display_name}</strong>}
-                    <div className="chat-bubble">{message.body}</div>
-                    <div className="chat-message-meta"><time>{timeLabel(message.created_at)}</time>{message.is_edited && <span>edited</span>}{own && (message.read_count > 0 ? <CheckCheck size={13} className="read-check" /> : <Check size={13} />)}</div>
+                    <div className={`chat-bubble ${isMedia ? 'has-media' : ''}`}><MessageBody message={{ ...message, kind: message.kind ?? 'text' }} own={own} conversationId={selectedConversation.id} currentUserId={user?.id} onChanged={() => queryClient.invalidateQueries({ queryKey: ['chat-messages', selectedId] })} /></div>
+                    <div className="chat-message-meta"><time>{timeLabel(message.created_at)}</time>{message.is_edited && <span>edited</span>}{own && (message.read_count > 0 ? <CheckCheck size={13} className="read-check" /> : <Check size={13} />)}{own && <button type="button" className="chat-unsend" onClick={() => { if (window.confirm('Unsend this message for everyone?')) void api.delete(`/conversations/${selectedConversation.id}/messages/${message.id}/`).then(() => queryClient.setQueryData<ChatMessage[]>(['chat-messages', selectedId], (old = []) => old.filter((item) => item.id !== message.id))).catch((err) => window.alert(getErrorMessage(err))) }}>Unsend</button>}</div>
                   </div>
                 </div>
               </div>
@@ -364,7 +375,7 @@ export default function ChatPage() {
             {typingUsername && <div className="chat-typing"><span className="typing-dots"><i /><i /><i /></span>{typingUsername} is typing…</div>}
             <div ref={messagesEndRef} />
           </div>
-          <form className="chat-composer" onSubmit={sendMessage}><textarea value={messageText} onChange={(event) => onMessageChange(event.target.value)} onBlur={() => { const activeSocket = socketRef.current; if (activeSocket?.readyState === WebSocket.OPEN) activeSocket.send(JSON.stringify({ type: 'typing', is_typing: false })) }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(event as unknown as FormEvent) } }} placeholder="Write a message…" rows={1} maxLength={4000} /><div className="chat-composer-footer"><span>Enter to send · Shift + Enter for a new line</span><button className="button button-primary" disabled={!messageText.trim()}><Send size={15} /> Send</button></div></form>
+          <form className="chat-composer" onSubmit={sendMessage}><div className="chat-composer-row"><ChatAttachments conversationId={selectedConversation.id} onSent={() => { queryClient.invalidateQueries({ queryKey: ['chat-messages', selectedId] }); queryClient.invalidateQueries({ queryKey: ['chat-conversations'] }) }} /><textarea value={messageText} onChange={(event) => onMessageChange(event.target.value)} onBlur={() => { const activeSocket = socketRef.current; if (activeSocket?.readyState === WebSocket.OPEN) activeSocket.send(JSON.stringify({ type: 'typing', is_typing: false })) }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(event as unknown as FormEvent) } }} placeholder="Write a message…" rows={1} maxLength={4000} /></div><div className="chat-composer-footer"><span>Enter to send · Shift + Enter for a new line</span><button className="button button-primary" disabled={!messageText.trim()}><Send size={15} /> Send</button></div></form>
         </> : <div className="chat-welcome"><div className="chat-empty-icon"><MessageCircle size={28} /></div><span className="eyebrow">A SPACE FOR CONVERSATION</span><h2>Your messages, all in one place.</h2><p>Start a private conversation or bring people together in a group chat.</p><button className="button button-primary" onClick={() => setShowNewChat(true)}><Plus size={16} /> New conversation</button></div>}
       </main>
     </section>
@@ -458,6 +469,12 @@ function ConversationDetails({ conversation, currentUserId, onlineUsers, onClose
 
   return <div className="modal-backdrop" onClick={onClose}><section className="modal-card chat-details-modal" role="dialog" aria-label="Conversation details" onClick={(event) => event.stopPropagation()}>
     <div className="modal-heading"><div><span className="eyebrow">{isGroup ? 'GROUP CHAT' : 'PRIVATE CONVERSATION'}</span><h2>{conversation.display_title}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close details"><X size={19} /></button></div>
+    <div className="chat-details-section-title">Disappearing messages</div>
+    <p className="chat-details-help">New messages are deleted for everyone after this time.{isGroup && !canManage ? ' Only admins can change it.' : ''}</p>
+    <div className="chat-disappear-select" role="group" aria-label="Disappearing messages">
+      {DISAPPEAR_OPTIONS.map((option) => <button key={option.seconds} type="button" disabled={isGroup && !canManage} className={(conversation.disappear_seconds ?? 0) === option.seconds ? 'active' : ''}
+        onClick={() => void api.post(`/conversations/${conversation.id}/disappearing/`, { seconds: option.seconds }).then(() => { void refresh(); void queryClient.invalidateQueries({ queryKey: ['chat-messages', conversation.id] }) }).catch((err) => setError(getErrorMessage(err)))}>{option.label}</button>)}
+    </div>
     <div className="chat-details-section-title">{isGroup ? `${conversation.members.length} participants` : 'Participants'}</div>
     <div className="chat-details-members">
       {conversation.members.map((member) => <div className="chat-details-member" key={member.user.id}>

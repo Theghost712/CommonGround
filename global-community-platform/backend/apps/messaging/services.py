@@ -71,7 +71,9 @@ def send_message(conversation, sender, body):
     from .models import Message, MessageReadReceipt
     from .serializers import MessageSerializer
 
-    message = Message.objects.create(conversation=conversation, sender=sender, body=body)
+    from .media import expiry_for
+
+    message = Message.objects.create(conversation=conversation, sender=sender, body=body, expires_at=expiry_for(conversation))
     MessageReadReceipt.objects.get_or_create(message=message, user=sender)
     touch_conversation(conversation.id)
     message = Message.objects.select_related("sender", "conversation").get(pk=message.pk)

@@ -9,6 +9,8 @@ class Conversation(models.Model):
 
     conversation_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=DIRECT, db_index=True)
     title = models.CharField(max_length=120, blank=True)
+    # Disappearing messages: new messages are deleted this many seconds after sending (0 = off).
+    disappear_seconds = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_conversations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
@@ -43,12 +45,49 @@ class ConversationMember(models.Model):
 
 
 class Message(models.Model):
+    TEXT, PHOTO, VIDEO, VOICE, POST, SYSTEM = "text", "photo", "video", "voice", "post", "system"
+    KINDS = [(TEXT, "Text"), (PHOTO, "Photo"), (VIDEO, "Video"), (VOICE, "Voice message"), (POST, "Shared post"), (SYSTEM, "Notice")]
+    MEDIA_KINDS = (PHOTO, VIDEO, VOICE)
+
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_chat_messages")
-    body = models.TextField(max_length=4000)
+    kind = models.CharField(max_length=6, choices=KINDS, default=TEXT)
+    body = models.TextField(max_length=4000, blank=True)
+    # Photos are re-encoded WebP, videos H.264 MP4 (apps/common/video.py), voice AAC M4A.
+    media = models.FileField(upload_to="chat/%Y/%m/", blank=True)
+    thumbnail = models.FileField(upload_to="chat/thumbs/%Y/%m/", blank=True)
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    processing = models.CharField(max_length=8, blank=True, default="", db_index=True)
+    processing_started_at = models.DateTimeField(null=True, blank=True)
+    processing_attempts = models.PositiveSmallIntegerField(default=0)
+    # View once: each recipient can open the photo/video a single time; then it's deleted.
+    view_once = models.BooleanField(default=False)
+    shared_post = models.ForeignKey("discussions.Discussion", null=True, blank=True, on_delete=models.SET_NULL, related_name="shares_in_chat")
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    def delete_files(self):
+        for field in (self.media, self.thumbnail):
+            if field:
+                try:
+                    field.delete(save=False)
+                except Exception:
+                    pass
+
+    @property
+    def preview(self):
+        """One line for chat lists and notifications."""
+        if self.deleted_at:
+            return "Message deleted"
+        labels = {self.PHOTO: "📷 Photo", self.VIDEO: "🎥 Video", self.VOICE: "🎤 Voice message", self.POST: "↗ Shared a post"}
+        if self.kind in labels:
+            label = ("👁 View-once " + labels[self.kind].split(" ", 1)[1].lower()) if self.view_once else labels[self.kind]
+            return f"{label}: {self.body}" if self.body and not self.view_once else label
+        return self.body
 
     class Meta:
         ordering = ["created_at", "id"]
@@ -56,6 +95,17 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message #{self.pk} from {self.sender}"
+
+
+class MessageOpen(models.Model):
+    """A recipient opened a view-once photo or video."""
+
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name="opens")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="opened_messages")
+    opened_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["message", "user"], name="one_open_per_user")]
 
 
 class MessageReadReceipt(models.Model):

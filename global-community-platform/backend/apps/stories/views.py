@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import F
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -151,7 +152,7 @@ class StoryMediaView(APIView):
         if kind is None:
             raise PermissionDenied("This link has expired. Reload the story.")
         story = get_object_or_404(Story, pk=pk)
-        if not story.is_active:
+        if not story.is_active and not story.highlight_items.exists():
             raise Http404
         field = story.media if kind == "media" else story.thumbnail
         if not field:
@@ -271,3 +272,88 @@ class CloseFriendsView(_AudienceListView):
 class HiddenFromView(_AudienceListView):
     model = StoryHiddenFrom
     member_field = "hidden_user"
+
+
+class HighlightsView(APIView):
+    """GET /stories/highlights/user/<username>/ — a profile's highlights with their stories.
+    POST /stories/highlights/ {title, story_ids} — create one from your stories."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username=None):
+        from .access import highlight_audience_ok
+        from .models import StoryHighlight
+
+        owner = get_object_or_404(User, username=username, is_active=True)
+        result = []
+        for highlight in StoryHighlight.objects.filter(owner=owner).prefetch_related("stories__author__profile"):
+            stories = [s for s in highlight.stories.order_by("highlight_items__added_at") if highlight_audience_ok(request.user, s)]
+            if not stories:
+                continue
+            data = _serialize(request, stories)
+            cover = next((item["thumbnail_url"] or item["media_url"] for item in data if item["media_type"] == "image" or item["thumbnail_url"]), "")
+            result.append({"id": highlight.pk, "title": highlight.title, "cover_url": cover, "stories": data,
+                           "is_own": owner.pk == request.user.pk, "background": stories[0].background})
+        return Response(result)
+
+    def post(self, request, username=None):
+        from .models import StoryHighlight, StoryHighlightItem
+
+        title = str(request.data.get("title", "")).strip()[:40]
+        if not title:
+            raise ValidationError({"title": "Give the highlight a name."})
+        ids = request.data.get("story_ids") or []
+        if not isinstance(ids, list):
+            raise ValidationError({"story_ids": "Send a list of story ids."})
+        stories = list(Story.objects.filter(author=request.user, pk__in=ids))
+        if not stories:
+            raise ValidationError({"story_ids": "Choose at least one of your stories."})
+        if StoryHighlight.objects.filter(owner=request.user).count() >= 50:
+            raise ValidationError({"title": "You can have at most 50 highlights."})
+        highlight = StoryHighlight.objects.create(owner=request.user, title=title)
+        StoryHighlightItem.objects.bulk_create([StoryHighlightItem(highlight=highlight, story=s) for s in stories], ignore_conflicts=True)
+        return Response({"id": highlight.pk, "title": highlight.title}, status=status.HTTP_201_CREATED)
+
+
+class HighlightDetailView(APIView):
+    """PATCH /stories/highlights/<id>/ {title?, add?: [ids], remove?: [ids]}; DELETE removes the highlight."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        from .models import StoryHighlight, StoryHighlightItem
+
+        highlight = get_object_or_404(StoryHighlight, pk=pk, owner=request.user)
+        if "title" in request.data:
+            title = str(request.data.get("title", "")).strip()[:40]
+            if not title:
+                raise ValidationError({"title": "Give the highlight a name."})
+            highlight.title = title
+            highlight.save(update_fields=["title", "updated_at"])
+        add = [s for s in Story.objects.filter(author=request.user, pk__in=request.data.get("add") or [])]
+        StoryHighlightItem.objects.bulk_create([StoryHighlightItem(highlight=highlight, story=s) for s in add], ignore_conflicts=True)
+        remove = request.data.get("remove") or []
+        if remove:
+            StoryHighlightItem.objects.filter(highlight=highlight, story_id__in=remove).delete()
+        if not highlight.items.exists():
+            highlight.delete()
+            return Response({"deleted": True})
+        return Response({"id": highlight.pk, "title": highlight.title, "count": highlight.items.count()})
+
+    def delete(self, request, pk):
+        from .models import StoryHighlight
+
+        get_object_or_404(StoryHighlight, pk=pk, owner=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MyRecentStoriesView(APIView):
+    """GET /stories/mine/ — your stories (active or already in highlights) to pick from."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Q
+
+        stories = Story.objects.filter(author=request.user).filter(Q(expires_at__gt=timezone.now()) | Q(highlight_items__isnull=False)).distinct().order_by("-created_at")[:100]
+        return Response(_serialize(request, list(stories)))

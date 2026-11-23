@@ -79,3 +79,30 @@ class StoryHiddenFrom(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["owner", "hidden_user"], name="unique_story_hidden")]
+
+
+class StoryHighlight(models.Model):
+    """A named collection of the owner's stories kept on their profile after 24 hours."""
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="story_highlights")
+    title = models.CharField(max_length=40)
+    stories = models.ManyToManyField(Story, through="StoryHighlightItem", related_name="highlights")
+    position = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "-created_at"]
+
+    def __str__(self):
+        return f"{self.owner}: {self.title}"
+
+
+class StoryHighlightItem(models.Model):
+    highlight = models.ForeignKey(StoryHighlight, on_delete=models.CASCADE, related_name="items")
+    story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name="highlight_items")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["added_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["highlight", "story"], name="story_once_per_highlight")]

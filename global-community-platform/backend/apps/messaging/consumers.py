@@ -133,8 +133,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         ).first()
         if not membership:
             return None
+        from .media import expiry_for
+
         message = Message.objects.create(
-            conversation_id=self.conversation_id, sender=self.user, body=body
+            conversation_id=self.conversation_id, sender=self.user, body=body,
+            expires_at=expiry_for(membership.conversation),
         )
         MessageReadReceipt.objects.get_or_create(message=message, user=self.user)
         Conversation.objects.filter(pk=self.conversation_id).update(updated_at=timezone.now())

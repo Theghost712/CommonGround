@@ -30,6 +30,7 @@ describe('HomePage', () => {
       if (url === '/stories/tray/') return { data: [trayEntry(2, 'asha', false), trayEntry(3, 'juma', true)] }
       if (url === '/people/suggestions/') return { data: [{ ...person(9, 'neema'), relationship: { ...relation, is_following: false }, reason: 'Follows you' }] }
       if (url === '/discussions/categories/') return { data: [] }
+      if (url === '/feed/for-you/') return page([discussion(1, 'Everyone post')])
       if (url === '/discussions/') return config?.params?.feed === 'following' ? page([discussion(2, 'From people I follow')]) : page([discussion(1, 'Everyone post')])
       if (url === '/discussions/trending/') return page([discussion(3, 'Hot post')])
       throw new Error(url)
@@ -72,7 +73,8 @@ describe('HomePage', () => {
 
   it('loads the next page with "Load more"', async () => {
     api.get.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
-      if (url === '/discussions/') return config?.params?.cursor === 'abc' ? page([discussion(5, 'Second page post')]) : page([discussion(4, 'First page post')], 'http://localhost:8000/api/v1/discussions/?cursor=abc&paginate=cursor')
+      // For you is ranked: page numbers.
+      if (url === '/feed/for-you/') return config?.params?.page === '2' ? page([discussion(5, 'Second page post')]) : page([discussion(4, 'First page post')], 'http://localhost:8000/api/v1/feed/for-you/?page=2')
       return { data: [] }
     })
     const user = userEvent.setup()

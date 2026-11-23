@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { BellOff, Bookmark, FileText, Flag, Heart, Link2, MessageCircle, MoreHorizontal, PenLine, Send, SquareArrowOutUpRight } from 'lucide-react'
+import { BellOff, Bookmark, FileText, Flag, Heart, Link2, MessageCircle, MoreHorizontal, PenLine, Repeat2, Send, SquareArrowOutUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api, getErrorMessage } from '../services/api'
@@ -13,6 +13,8 @@ import VideoPlayer from './VideoPlayer'
 import '../media-posts.css'
 import ReportDialog from './ReportDialog'
 import RichText from './RichText'
+import ShareSheet from './ShareSheet'
+import { recordView, trackVisibility } from '../services/viewTracker'
 
 export function timeAgo(value: string, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(value).getTime()) / 1000))
@@ -31,7 +33,18 @@ export { clampRatio } from './PostMedia'
 
 const DOUBLE_TAP_MS = 300
 
-export default function FeedPost({ discussion }: { discussion: Discussion }) {
+export default function FeedPost({ discussion, embedded = false }: { discussion: Discussion; embedded?: boolean }) {
+  // A plain repost shows the original post under a "reposted" line.
+  if (discussion.repost_of && !discussion.body.trim()) {
+    return <div className="feed-repost">
+      <div className="feed-repost-label"><Repeat2 size={14} /> <UserLink username={discussion.author_username}>{discussion.author_username}</UserLink> reposted</div>
+      <FeedPost discussion={discussion.repost_of} />
+    </div>
+  }
+  return <FeedPostCard discussion={discussion} embedded={embedded} />
+}
+
+function FeedPostCard({ discussion, embedded }: { discussion: Discussion; embedded: boolean }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const images = discussion.attachments.filter((file) => file.is_image)
@@ -54,6 +67,26 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
   const [reporting, setReporting] = useState(false)
   const lastTap = useRef(0)
   const menuRef = useRef<HTMLDivElement>(null)
+  const articleRef = useRef<HTMLElement>(null)
+  const [sharing, setSharing] = useState(false)
+  const watchedRef = useRef(false)
+  const quoted = discussion.repost_of ?? null
+
+  // The For You feed learns from what stays on screen.
+  useEffect(() => {
+    if (embedded || !articleRef.current) return
+    return trackVisibility(articleRef.current, discussion.id)
+  }, [discussion.id, embedded])
+
+  const onVideoProgress = (fraction: number, seconds: number) => {
+    if (!watchedRef.current && fraction >= 0.9) { watchedRef.current = true; recordView(discussion.id, seconds * 1000, true) }
+  }
+  const openSponsor = async () => {
+    try {
+      const { data } = await api.post<{ url: string }>(`/discussions/${discussion.id}/sponsored-click/`)
+      if (/^https?:/i.test(data.url)) window.open(data.url, '_blank', 'noopener,noreferrer'); else window.location.assign(data.url)
+    } catch (err) { setToast(getErrorMessage(err)) }
+  }
 
   // Server data wins whenever the feed refetches.
   useEffect(() => {
@@ -162,12 +195,13 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
   const longBody = discussion.body.length > 140
   const postUrl = `/discussions/${discussion.id}`
 
-  return <article className="feed-post" aria-label={`Post by ${discussion.author_username}: ${discussion.title || discussion.body.slice(0, 80) || 'photo'}`}>
+  return <article ref={articleRef} className={`feed-post ${discussion.sponsored ? 'is-sponsored' : ''}`} aria-label={`Post by ${discussion.author_username}: ${discussion.title || discussion.body.slice(0, 80) || 'photo'}`}>
     <header className="feed-post-header">
       <UserLink username={discussion.author_username} className="feed-avatar-link"><span className="feed-avatar-ring"><Avatar person={author} size={34} /></span></UserLink>
       <div className="feed-post-who">
         <div><UserLink username={discussion.author_username}><strong>{discussion.author_username}</strong></UserLink><span className="feed-dot">•</span><time dateTime={discussion.created_at} title={new Date(discussion.created_at).toLocaleString()}>{timeAgo(discussion.created_at)}</time></div>
-        {discussion.community_name ? <Link to={`/communities/${discussion.community}`} className="feed-post-place">{discussion.community_name}</Link> : <span className="feed-post-place">{discussion.category}</span>}
+        {discussion.sponsored ? <span className="feed-sponsor-tag">Sponsored · {discussion.sponsored.name}</span>
+          : discussion.community_name ? <Link to={`/communities/${discussion.community}`} className="feed-post-place">{discussion.community_name}</Link> : <span className="feed-post-place">{discussion.category}</span>}
       </div>
       <div className="feed-menu" ref={menuRef}>
         <button type="button" className="icon-button" aria-label="More options" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><MoreHorizontal size={20} /></button>
@@ -181,7 +215,11 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
       </div>
     </header>
 
-    {video ? <div onDoubleClick={likeFromDoubleTap}><VideoPlayer file={video} /></div>
+    {quoted ? <>
+      {discussion.body && <p className="feed-quote"><RichText text={discussion.body} /></p>}
+      <div className="feed-embedded"><FeedPost discussion={quoted} embedded /></div>
+    </>
+     : video ? <div onDoubleClick={likeFromDoubleTap}><VideoPlayer file={video} onProgress={onVideoProgress} /></div>
      : images.length > 0 ? <PostMedia images={images} onDoubleTap={likeFromDoubleTap} />
      : discussion.poll ? <div className="feed-poll"><PollCard postId={discussion.id} poll={discussion.poll} /></div>
      : <div className="feed-text-post" onDoubleClick={likeFromDoubleTap} onTouchEnd={onMediaTouchEnd}>
@@ -192,7 +230,7 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
     <div className="feed-actions">
       <button type="button" className={`feed-action ${liked ? 'is-liked' : ''}`} aria-label={liked ? 'Unlike' : 'Like'} aria-pressed={liked} onClick={() => void setLike(!liked)}><Heart size={24} fill={liked ? 'currentColor' : 'none'} /></button>
       <Link to={postUrl} className="feed-action" aria-label="Comment"><MessageCircle size={24} /></Link>
-      <button type="button" className="feed-action" aria-label="Share" onClick={() => void share()}><Send size={23} /></button>
+      <button type="button" className="feed-action" aria-label="Share" onClick={() => setSharing(true)}><Send size={23} /></button>
       <button type="button" className={`feed-action feed-save ${saved ? 'is-saved' : ''}`} aria-label={saved ? 'Remove from saved' : 'Save'} aria-pressed={saved} onClick={() => void toggleSave()}><Bookmark size={24} fill={saved ? 'currentColor' : 'none'} /></button>
     </div>
 
@@ -202,7 +240,7 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
         <UserLink username={discussion.author_username}><strong>{discussion.author_username}</strong></UserLink>{' '}
         {hasMedia && discussion.title && <Link to={postUrl} className="feed-caption-title">{discussion.title}</Link>}
         {hasMedia && discussion.title && captionText && ' — '}
-        <RichText text={captionText} />
+        {!quoted && <RichText text={captionText} />}
       </p>
       {longBody && !expanded && <button type="button" className="feed-more" onClick={() => setExpanded(true)}>more</button>}
       {files.length > 0 && <Link to={postUrl} className="feed-files"><FileText size={14} /> {files.length} {files.length === 1 ? 'file' : 'files'} attached</Link>}
@@ -212,7 +250,9 @@ export default function FeedPost({ discussion }: { discussion: Discussion }) {
         {comment.trim() && <button type="submit" disabled={posting}>{posting ? 'Posting…' : 'Post'}</button>}
       </form>
     </div>
+    {discussion.sponsored?.has_link && <div className="feed-sponsored"><span>Sponsored by <strong>{discussion.sponsored.name}</strong></span><button type="button" onClick={() => void openSponsor()}>Learn more</button></div>}
     {toast && <div className="feed-toast" role="status">{toast}</div>}
+    {sharing && <ShareSheet post={discussion} onClose={() => setSharing(false)} onDone={setToast} />}
     {reporting && <ReportDialog targetType="post" targetId={discussion.id} onClose={() => setReporting(false)} />}
   </article>
 }

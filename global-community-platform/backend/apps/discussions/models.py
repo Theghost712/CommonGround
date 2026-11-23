@@ -24,6 +24,16 @@ class Discussion(models.Model):
     content_html = models.TextField(blank=True, default="")
     category = models.CharField(max_length=60, default="General", db_index=True)
     hashtags = models.ManyToManyField(Hashtag, blank=True, related_name="discussions")
+    # Repost: this post re-shares another one (optionally with the reposter's comment).
+    repost_of = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="reposts")
+    share_count = models.PositiveIntegerField(default=0)
+    view_count = models.PositiveIntegerField(default=0)
+    # Sponsored posts: an admin marks a post as paid promotion until a date.
+    sponsored_until = models.DateTimeField(null=True, blank=True, db_index=True)
+    sponsor_name = models.CharField(max_length=80, blank=True, help_text="Shown as “Sponsored · <name>”.")
+    sponsor_url = models.URLField(max_length=500, blank=True, help_text="Optional link for the “Learn more” button.")
+    sponsored_impressions = models.PositiveIntegerField(default=0)
+    sponsored_clicks = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -160,3 +170,17 @@ class PollVote(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=["option", "user"], name="one_vote_per_option")]
         indexes = [models.Index(fields=["poll", "user"], name="pollvote_poll_user")]
+
+
+class PostView(models.Model):
+    """Who saw a post and for how long (videos): the For You feed learns from it."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="post_views")
+    discussion = models.ForeignKey(Discussion, on_delete=models.CASCADE, related_name="views")
+    watched_ms = models.PositiveIntegerField(default=0)
+    completed = models.BooleanField(default=False)
+    viewed_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "discussion"], name="one_view_row_per_user_post")]
+        indexes = [models.Index(fields=["user", "-viewed_at"], name="postview_user_recent")]

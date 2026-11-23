@@ -22,8 +22,10 @@ MB = 1024 * 1024
 TYPES = {
     "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/heic": ".heic",
     "video/mp4": ".mp4", "video/quicktime": ".mov", "video/webm": ".webm",
+    "audio/webm": ".weba", "audio/ogg": ".ogg", "audio/mp4": ".m4a", "audio/mpeg": ".mp3", "audio/aac": ".aac", "audio/x-m4a": ".m4a",
 }
-PURPOSES = {"post-photo": "image/", "post-video": "video/", "story-photo": "image/", "story-video": "video/"}
+PURPOSES = {"post-photo": "image/", "post-video": "video/", "story-photo": "image/", "story-video": "video/",
+            "chat-photo": "image/", "chat-video": "video/", "chat-voice": "audio/"}
 
 
 def direct_uploads_available():
@@ -33,6 +35,8 @@ def direct_uploads_available():
 def max_bytes(purpose):
     if purpose.endswith("photo"):
         return 15 * MB
+    if purpose == "chat-voice":
+        return 10 * MB
     if purpose == "story-video":
         return min(50 * MB, settings.DIRECT_UPLOAD_MAX_VIDEO_MB * MB)
     return settings.DIRECT_UPLOAD_MAX_VIDEO_MB * MB
