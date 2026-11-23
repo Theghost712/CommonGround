@@ -1,6 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, KeyRound, LogOut, Mail, MailWarning, MonitorSmartphone, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, KeyRound, LogOut, Mail, MailWarning, MonitorSmartphone, ShieldCheck, Trash2 } from 'lucide-react'
 import TwoFactorSection from '../components/TwoFactorSection'
 import { useAuth } from '../context/AuthContext'
 import { api, getErrorMessage } from '../services/api'
@@ -114,6 +114,44 @@ function SessionsSection() {
   </Card>
 }
 
+function DeleteAccountSection() {
+  const { applySession } = useAuth()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ password: '', code: '', confirm: '' })
+  const [twoFactor, setTwoFactor] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<Result>(null)
+  useEffect(() => {
+    if (!open) return
+    api.get<{ enabled: boolean }>('/auth/2fa/').then(({ data }) => setTwoFactor(data.enabled)).catch(() => {})
+  }, [open])
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true); setResult(null)
+    try {
+      await api.post('/auth/account/delete/', form)
+      await applySession(null)
+      navigate('/login', { replace: true, state: { message: 'Your account has been deleted.' } })
+    } catch (err) { setResult({ ok: false, message: getErrorMessage(err) }) } finally { setBusy(false) }
+  }
+
+  return <Card icon={<Trash2 size={16} />} title="Delete account" help="Permanently deletes your profile, posts, comments, stories and messages. Communities and group chats you created pass to another member. This can't be undone.">
+    {!open ? <div className="security-actions is-start"><button type="button" className="button button-danger-outline" onClick={() => setOpen(true)}>Delete my account…</button></div>
+      : <form className="security-form" onSubmit={submit}>
+        <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+        {twoFactor && <label>Authenticator or recovery code<input required inputMode="text" autoComplete="one-time-code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>}
+        <label>Type DELETE to confirm<input required autoComplete="off" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} /></label>
+        <Feedback result={result} />
+        <div className="security-actions">
+          <button type="button" className="text-button" onClick={() => { setOpen(false); setResult(null) }}>Cancel</button>
+          <button className="button button-danger-outline" disabled={busy || form.confirm.trim().toUpperCase() !== 'DELETE'}>{busy ? 'Deleting…' : 'Delete my account forever'}</button>
+        </div>
+      </form>}
+  </Card>
+}
+
 export default function AccountSecurityPage() {
   return <div className="people-page privacy-page security-page">
     <Link to="/profile" className="back-link"><ArrowLeft size={16} /> Back to profile settings</Link>
@@ -122,5 +160,6 @@ export default function AccountSecurityPage() {
     <PasswordSection />
     <TwoFactorSection />
     <SessionsSection />
+    <DeleteAccountSection />
   </div>
 }

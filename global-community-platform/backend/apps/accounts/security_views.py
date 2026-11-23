@@ -203,3 +203,32 @@ class EmailChangeView(SecurityThrottleMixin, APIView):
             return Response({"new_email": ["Another account already uses this email address."]}, status=status.HTTP_400_BAD_REQUEST)
         send_email_change_confirmation(user, new_email)
         return Response({"detail": f"Check {new_email} and open the link to finish the change."})
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class AccountDeleteView(APIView):
+    """POST {password, code?, confirm: "DELETE"}: permanently delete your account.
+
+    With two-step sign-in on, an authenticator or recovery code is required too.
+    Communities and group chats you created are handed to another member.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [UserRateThrottle, ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        from .deletion import delete_account
+        from .two_factor import is_enabled, verify_code
+
+        user = request.user
+        if str(request.data.get("confirm", "")).strip().upper() != "DELETE":
+            return Response({"confirm": ['Type DELETE to confirm.']}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.check_password(str(request.data.get("password", ""))):
+            return Response({"password": ["Your password is not correct."]}, status=status.HTTP_400_BAD_REQUEST)
+        if is_enabled(user) and verify_code(user, request.data.get("code")) is None:
+            return Response({"code": ["Enter a code from your authenticator app (or a recovery code)."]}, status=status.HTTP_400_BAD_REQUEST)
+        if user.is_superuser and not User.objects.filter(is_superuser=True, is_active=True).exclude(pk=user.pk).exists():
+            return Response({"detail": "You're the only administrator. Make someone else an administrator first."}, status=status.HTTP_409_CONFLICT)
+        delete_account(user)
+        return no_store(clear_refresh_cookie(Response({"detail": "Your account and everything in it have been deleted."})))

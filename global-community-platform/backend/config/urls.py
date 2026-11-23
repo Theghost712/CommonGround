@@ -6,6 +6,7 @@ from apps.events.views import CommunityEventViewSet
 
 from apps.accounts.views import CurrentUserView, LoginView, LogoutView, RefreshView, RegisterView, UserProfileView, WebSocketTicketView, csrf_cookie
 from apps.accounts.security_views import (
+    AccountDeleteView,
     EmailChangeView, EmailVerificationResendView, EmailVerifyView, PasswordChangeView,
     PasswordResetConfirmView, PasswordResetRequestView, SignOutEverywhereView,
 )
@@ -65,6 +66,7 @@ urlpatterns = [
     path("api/v1/auth/email/resend/", EmailVerificationResendView.as_view(), name="email_verify_resend"),
     path("api/v1/auth/email/change/", EmailChangeView.as_view(), name="email_change"),
     path("api/v1/auth/sessions/revoke/", SignOutEverywhereView.as_view(), name="sessions_revoke"),
+    path("api/v1/auth/account/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("api/v1/attachments/<int:pk>/download/", DiscussionAttachmentDownloadView.as_view(), name="discussion_attachment_download"),
     path("api/v1/posts/", PostCreateView.as_view(), name="post_create"),
     path("api/v1/posts/video/", VideoPostCreateView.as_view(), name="video_post_create"),
