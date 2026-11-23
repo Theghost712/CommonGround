@@ -6,81 +6,128 @@
 {% block content_title %}{% endblock %}
 
 {% block content %}
-<div class="cg-dashboard">
-  <section class="cg-dashboard-hero">
+{% with d=admin_dashboard %}
+<div class="cg-dash">
+  <header class="cg-page-head">
     <div>
-      <span class="cg-eyebrow">COMMONGROUND WORKSPACE</span>
-      <h1>Platform overview</h1>
-      <p>Manage communities, conversations, members and platform activity.</p>
-      <div class="cg-hero-links">
-        <a href="/moderation">Open moderation queue</a>
-        <a href="/" target="_blank" rel="noopener">View the site</a>
-        <a href="/api/v1/health/" target="_blank" rel="noopener">System health</a>
-      </div>
+      <p class="cg-page-kicker">{{ d.today|date:"l, j F Y" }}</p>
+      <h1>Overview</h1>
+      <p class="cg-page-sub">Welcome back, {% firstof user.get_short_name user.get_username %}. Here is what is happening on CommonGround.</p>
     </div>
-    <div class="cg-hero-mark" aria-hidden="true">cg</div>
+    <div class="cg-page-actions">
+      <a class="cg-btn cg-btn-ghost" href="/api/v1/health/" target="_blank" rel="noopener">System health</a>
+      <a class="cg-btn cg-btn-ghost" href="/" target="_blank" rel="noopener">View site</a>
+      <a class="cg-btn cg-btn-primary" href="/moderation">Moderation queue</a>
+    </div>
+  </header>
+
+  {% if d %}
+  <section class="cg-card cg-attention {% if d.open_items %}has-items{% endif %}" aria-labelledby="attention-title">
+    <div class="cg-card-head">
+      <h2 id="attention-title">Needs attention</h2>
+      {% if d.open_items %}<span class="cg-pill cg-pill-warn">{{ d.open_items }} open</span>{% else %}<span class="cg-pill cg-pill-ok">All clear</span>{% endif %}
+    </div>
+    <ul class="cg-attention-list">
+      {% for item in d.attention %}
+      <li class="{% if item.count %}is-open{% endif %}">
+        <span class="cg-attention-count">{{ item.count }}</span>
+        <div class="cg-attention-copy"><strong>{{ item.label }}</strong><span>{{ item.hint }}</span></div>
+        {% if item.url %}<a class="cg-btn {% if item.count %}cg-btn-primary{% else %}cg-btn-ghost{% endif %} cg-btn-sm" href="{{ item.url }}">{% if item.count %}{{ item.action }}{% else %}View{% endif %}</a>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
   </section>
 
-  {% if admin_dashboard_stats %}
-  <section class="cg-stat-grid" aria-label="Platform statistics">
-    {% for stat in admin_dashboard_stats %}
-    <a class="cg-stat-card cg-stat-{{ stat.tone }}" href="{{ stat.url }}">
-      <span class="cg-stat-label">{{ stat.label }}</span>
-      <strong class="cg-stat-value">{{ stat.value }}</strong>
-      <span class="cg-stat-hint">{{ stat.hint }}</span>
+  <section class="cg-kpis" aria-label="Key figures">
+    {% for kpi in d.kpis %}
+    <a class="cg-card cg-kpi" href="{{ kpi.url }}">
+      <span class="cg-kpi-label">{{ kpi.label }}</span>
+      <strong class="cg-kpi-value">{{ kpi.value }}</strong>
+      <span class="cg-kpi-delta is-{{ kpi.delta.dir }}">{{ kpi.delta.text }}</span>
+      <span class="cg-spark" role="img" aria-label="{{ kpi.unit }} per day, last {{ d.chart_days }} days">
+        {% for bar in kpi.bars %}<i style="height:{{ bar.pct }}%" title="{{ bar.day|date:'j M' }}: {{ bar.n }} {{ kpi.unit }}"></i>{% endfor %}
+      </span>
     </a>
     {% endfor %}
   </section>
-  {% endif %}
 
-  <div class="cg-dashboard-columns">
-    <section class="cg-panel cg-app-panel">
-      <div class="cg-panel-heading">
-        <div><span class="cg-eyebrow">ADMINISTRATION</span><h2>Apps and records</h2></div>
-      </div>
-      {% if app_list %}
-        {% for app in app_list %}
-        <article class="cg-app-group">
-          <h3>{{ app.name }}</h3>
-          <div class="cg-model-list">
-            {% for model in app.models %}
-            <div class="cg-model-row">
-              {% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}<span>{{ model.name }}</span>{% endif %}
-              <div class="cg-model-actions">
-                {% if model.add_url %}<a class="cg-add-link" href="{{ model.add_url }}">Add</a>{% endif %}
-                {% if model.admin_url %}<a class="cg-open-link" href="{{ model.admin_url }}" aria-label="View {{ model.name }}">View records <span aria-hidden="true">→</span></a>{% endif %}
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </article>
-        {% endfor %}
-      {% else %}
-        <p class="cg-empty-state">You do not have permission to view or edit any records.</p>
-      {% endif %}
+  <div class="cg-grid-2">
+    <section class="cg-card" aria-labelledby="reports-title">
+      <div class="cg-card-head"><h2 id="reports-title">Latest open reports</h2><a class="cg-link" href="{% url 'admin:safety_report_changelist' %}?status__exact=open">All reports →</a></div>
+      {% if d.recent_reports %}
+      <div class="cg-table-wrap"><table class="cg-table">
+        <thead><tr><th>Reason</th><th>About</th><th>Reported by</th><th class="cg-right">When</th></tr></thead>
+        <tbody>
+          {% for r in d.recent_reports %}
+          <tr>
+            <td><a href="{{ r.url }}">{{ r.reason }}</a></td>
+            <td><span class="cg-tag">{{ r.target }}</span> {{ r.owner }}</td>
+            <td>{{ r.by }}</td>
+            <td class="cg-right cg-muted" title="{{ r.when }}">{{ r.ago }} ago</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}<p class="cg-empty">No open reports. Nice.</p>{% endif %}
     </section>
 
-    <aside class="cg-panel cg-activity-panel">
-      <div class="cg-panel-heading"><div><span class="cg-eyebrow">AUDIT TRAIL</span><h2>Recent activity</h2></div></div>
+    <section class="cg-card" aria-labelledby="members-title">
+      <div class="cg-card-head"><h2 id="members-title">Newest members</h2><a class="cg-link" href="{% url 'admin:auth_user_changelist' %}?o=-6">All members →</a></div>
+      {% if d.new_members %}
+      <ul class="cg-people">
+        {% for m in d.new_members %}
+        <li>
+          <span class="cg-avatar" aria-hidden="true">{{ m.username|slice:":1"|upper }}</span>
+          <div><a href="{{ m.url }}">{{ m.username }}</a>{% if m.staff %} <span class="cg-tag cg-tag-accent">Staff</span>{% endif %}{% if not m.active %} <span class="cg-tag">Inactive</span>{% endif %}
+            <span class="cg-muted">{% if m.name %}{{ m.name }} · {% endif %}joined {{ m.ago }} ago</span></div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="cg-empty">No members yet.</p>{% endif %}
+    </section>
+  </div>
+  {% endif %}
+
+  <div class="cg-grid-main">
+    <section class="cg-card" aria-labelledby="manage-title">
+      <div class="cg-card-head"><h2 id="manage-title">Manage</h2></div>
+      {% if app_list %}
+      <div class="cg-apps">
+        {% for app in app_list %}
+        <div class="cg-app">
+          <h3>{{ app.name }}</h3>
+          <ul>
+            {% for model in app.models %}
+            <li>
+              {% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}<span>{{ model.name }}</span>{% endif %}
+              {% if model.add_url %}<a class="cg-add" href="{{ model.add_url }}" aria-label="Add {{ model.name }}">+</a>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="cg-empty">You do not have permission to view or edit any records.</p>{% endif %}
+    </section>
+
+    <aside class="cg-card" aria-labelledby="log-title">
+      <div class="cg-card-head"><h2 id="log-title">Your recent changes</h2></div>
       {% get_admin_log 8 as admin_log for_user user %}
       {% if admin_log %}
-        <ol class="cg-activity-list">
-          {% for entry in admin_log %}
-          <li class="cg-activity-item">
-            <span class="cg-activity-dot {% if entry.is_addition %}is-add{% elif entry.is_deletion %}is-delete{% else %}is-change{% endif %}" aria-hidden="true"></span>
-            <div>
-              <div class="cg-activity-title">
-                {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}
-              </div>
-              <span class="cg-activity-meta">{% if entry.is_addition %}Added{% elif entry.is_deletion %}Deleted{% else %}Updated{% endif %}{% if entry.content_type %} · {{ entry.content_type.name }}{% endif %}</span>
-            </div>
-          </li>
-          {% endfor %}
-        </ol>
-      {% else %}
-        <p class="cg-empty-state">Your recent changes will appear here.</p>
-      {% endif %}
+      <ol class="cg-log">
+        {% for entry in admin_log %}
+        <li>
+          <span class="cg-dot {% if entry.is_addition %}is-add{% elif entry.is_deletion %}is-delete{% else %}is-change{% endif %}" aria-hidden="true"></span>
+          <div>
+            {% if entry.is_deletion or not entry.get_admin_url %}<span class="cg-log-title">{{ entry.object_repr }}</span>{% else %}<a class="cg-log-title" href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}
+            <span class="cg-muted">{% if entry.is_addition %}Added{% elif entry.is_deletion %}Deleted{% else %}Changed{% endif %}{% if entry.content_type %} · {{ entry.content_type.name|capfirst }}{% endif %} · {{ entry.action_time|date:"j M, H:i" }}</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="cg-empty">Changes you make in the admin will be listed here.</p>{% endif %}
     </aside>
   </div>
 </div>
+{% endwith %}
 {% endblock %}

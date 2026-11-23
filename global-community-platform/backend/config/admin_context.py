@@ -1,23 +1,45 @@
+"""Data for the admin home page (only computed on that page, for staff)."""
+
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.urls import reverse
+from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
+from django.utils.timesince import timesince
+
+DAYS = 14
+
+
+def _url(name, query=""):
+    try:
+        return reverse(name) + query
+    except NoReverseMatch:
+        return ""
+
+
+def _daily(queryset, field="created_at"):
+    """Counts per day for the last DAYS days (oldest first), zero-filled."""
+    today = timezone.localdate()
+    start = today - timedelta(days=DAYS - 1)
+    rows = (queryset.filter(**{f"{field}__date__gte": start}).annotate(day=TruncDate(field))
+            .values("day").annotate(n=Count("pk")).values_list("day", "n"))
+    counts = dict(rows)
+    return [{"day": start + timedelta(days=i), "n": counts.get(start + timedelta(days=i), 0)} for i in range(DAYS)]
+
+
+def _bars(series):
+    """Heights in % for a small bar chart; the tallest bar is 100%."""
+    peak = max((point["n"] for point in series), default=0) or 1
+    return [{**point, "pct": max(4, round(point["n"] * 100 / peak)) if point["n"] else 0} for point in series]
 
 
 def admin_dashboard_stats(request):
-    """Stat cards for the admin home page: what needs attention first, then totals."""
     user = getattr(request, "user", None)
     match = getattr(request, "resolver_match", None)
-    if (
-        not match
-        or match.namespace != "admin"
-        or match.url_name != "index"
-        or not user
-        or not user.is_authenticated
-        or not user.is_staff
-    ):
-        return {"admin_dashboard_stats": []}
+    if not match or match.namespace != "admin" or match.url_name != "index" or not user or not user.is_authenticated or not user.is_staff:
+        return {"admin_dashboard_stats": [], "admin_dashboard": None}
 
     from apps.calls.models import Call, GroupCall
     from apps.communities.models import Community, CommunityMembership
@@ -25,43 +47,79 @@ def admin_dashboard_stats(request):
     from apps.safety.models import Report
 
     User = get_user_model()
-    week_ago = timezone.now() - timedelta(days=7)
-    stats = []
+    now = timezone.now()
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
 
     def can(*perms):
         return any(user.has_perm(perm) for perm in perms)
 
-    def add(label, value, hint, url, tone, urgent=False):
-        stats.append({"label": label, "value": value, "hint": hint, "url": url, "tone": "red" if urgent and value else tone})
+    def delta(this_week, last_week):
+        """'+12 this week · 8 the week before' — counts, not percentages, which mislead on small numbers."""
+        direction = "up" if this_week > last_week else "down" if this_week < last_week else "flat"
+        return {"text": f"+{this_week} this week ({last_week} last week)", "dir": direction}
 
-    # Needs attention
+    # Needs attention ------------------------------------------------------
+    attention = []
     if can("safety.view_report", "safety.change_report"):
-        add("Open reports", Report.objects.filter(status=Report.OPEN).count(), "Waiting for a moderator",
-            f"{reverse('admin:safety_report_changelist')}?status__exact={Report.OPEN}", "amber", urgent=True)
+        n = Report.objects.filter(status=Report.OPEN).count()
+        attention.append({"label": "Open reports", "count": n, "hint": "Posts, comments or people reported by members",
+                          "url": "/moderation", "action": "Review"})
     if can("communities.change_community"):
-        add("Awaiting review", Community.objects.filter(approval_status=Community.PENDING).count(), "Communities pending approval",
-            f"{reverse('admin:communities_community_changelist')}?approval_status__exact={Community.PENDING}", "amber", urgent=True)
+        n = Community.objects.filter(approval_status=Community.PENDING).count()
+        attention.append({"label": "Communities awaiting approval", "count": n, "hint": "New communities stay hidden until approved",
+                          "url": _url("admin:communities_community_changelist", f"?approval_status__exact={Community.PENDING}"), "action": "Approve"})
     if can("discussions.view_discussionattachment"):
-        failed = DiscussionAttachment.objects.filter(processing="failed").count()
-        pending = DiscussionAttachment.objects.filter(processing="pending").count()
-        add("Videos", f"{pending} / {failed}", "Converting / couldn't be processed",
-            f"{reverse('admin:discussions_discussionattachment_changelist')}?processing__exact=failed", "blue")
+        n = DiscussionAttachment.objects.filter(processing="failed").count()
+        attention.append({"label": "Videos that couldn't be processed", "count": n, "hint": "Uploads that weren't playable videos",
+                          "url": _url("admin:discussions_discussionattachment_changelist", "?processing__exact=failed"), "action": "Inspect"})
+    open_items = sum(item["count"] for item in attention)
 
-    # Activity
+    # Key figures ----------------------------------------------------------
+    kpis = []
     if can("auth.view_user", "auth.change_user"):
-        add("Members", User.objects.filter(is_active=True).count(),
-            f"+{User.objects.filter(date_joined__gte=week_ago).count()} in the last 7 days",
-            reverse("admin:auth_user_changelist"), "purple")
+        users = User.objects.all()
+        this, last = users.filter(date_joined__gte=week_ago).count(), users.filter(date_joined__gte=two_weeks_ago, date_joined__lt=week_ago).count()
+        kpis.append({"label": "Members", "value": users.filter(is_active=True).count(), "delta": delta(this, last),
+                     "url": _url("admin:auth_user_changelist"), "bars": _bars(_daily(users, "date_joined")), "unit": "sign-ups"})
     if can("discussions.view_discussion", "discussions.change_discussion"):
-        add("Posts", Discussion.objects.count(), f"+{Discussion.objects.filter(created_at__gte=week_ago).count()} in the last 7 days",
-            reverse("admin:discussions_discussion_changelist"), "blue")
+        posts = Discussion.objects.all()
+        this, last = posts.filter(created_at__gte=week_ago).count(), posts.filter(created_at__gte=two_weeks_ago, created_at__lt=week_ago).count()
+        kpis.append({"label": "Posts", "value": posts.count(), "delta": delta(this, last),
+                     "url": _url("admin:discussions_discussion_changelist"), "bars": _bars(_daily(posts)), "unit": "posts"})
     if can("communities.view_community", "communities.change_community"):
-        add("Communities", Community.objects.count(),
-            f"{CommunityMembership.objects.filter(status=CommunityMembership.ACTIVE).count()} active memberships",
-            reverse("admin:communities_community_changelist"), "blue")
+        kpis.append({"label": "Communities", "value": Community.objects.count(),
+                     "delta": {"text": f"{CommunityMembership.objects.filter(status=CommunityMembership.ACTIVE).count()} active memberships", "dir": "flat"},
+                     "url": _url("admin:communities_community_changelist"), "bars": _bars(_daily(Community.objects.all())), "unit": "new communities"})
     if can("calls.view_call", "calls.view_groupcall"):
         live = Call.objects.filter(status__in=Call.LIVE).count() + GroupCall.objects.filter(status=GroupCall.LIVE).count()
-        add("Calls", live, f"Live now · {Call.objects.filter(created_at__gte=week_ago).count() + GroupCall.objects.filter(created_at__gte=week_ago).count()} in the last 7 days",
-            reverse("admin:calls_call_changelist"), "green")
+        week = Call.objects.filter(created_at__gte=week_ago).count() + GroupCall.objects.filter(created_at__gte=week_ago).count()
+        kpis.append({"label": "Calls this week", "value": week,
+                     "delta": {"text": f"{live} live right now", "dir": "up" if live else "flat"},
+                     "url": _url("admin:calls_call_changelist"), "bars": _bars(_daily(Call.objects.all())), "unit": "calls"})
 
-    return {"admin_dashboard_stats": stats}
+    # Recent items ---------------------------------------------------------
+    recent_reports = []
+    if can("safety.view_report"):
+        for report in Report.objects.filter(status=Report.OPEN).select_related("reporter", "target_owner")[:5]:
+            recent_reports.append({
+                "reason": report.get_reason_display(), "target": report.get_target_type_display(),
+                "owner": report.target_owner.username if report.target_owner else "—", "by": report.reporter.username,
+                "when": report.created_at, "ago": timesince(report.created_at, depth=1), "url": reverse("admin:safety_report_change", args=[report.pk]),
+            })
+    new_members = []
+    if can("auth.view_user"):
+        for member in User.objects.order_by("-date_joined")[:6]:
+            new_members.append({"username": member.username, "name": member.get_full_name(), "joined": member.date_joined, "ago": timesince(member.date_joined, depth=1),
+                                "staff": member.is_staff, "active": member.is_active,
+                                "url": reverse("admin:auth_user_change", args=[member.pk])})
+
+    dashboard = {
+        "today": timezone.localdate(),
+        "attention": attention, "open_items": open_items,
+        "kpis": kpis, "recent_reports": recent_reports, "new_members": new_members,
+        "chart_days": DAYS,
+    }
+    # Kept for templates that still read the old key.
+    legacy = [{"label": k["label"], "value": k["value"], "hint": k["delta"]["text"], "url": k["url"], "tone": "blue"} for k in kpis]
+    return {"admin_dashboard_stats": legacy, "admin_dashboard": dashboard}

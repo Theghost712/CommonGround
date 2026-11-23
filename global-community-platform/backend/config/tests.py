@@ -28,11 +28,14 @@ class AdminBrandingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "CommonGround")
-        self.assertContains(response, "Platform overview")
-        self.assertContains(response, "Platform statistics")
-        self.assertContains(response, "Awaiting review")
-        self.assertContains(response, "Apps and records")
-        self.assertContains(response, "Recent activity")
+        self.assertContains(response, "Overview")
+        self.assertContains(response, "Needs attention")
+        self.assertContains(response, "Communities awaiting approval")
+        self.assertContains(response, "Key figures")
+        self.assertContains(response, "Latest open reports")
+        self.assertContains(response, "Newest members")
+        self.assertContains(response, "Manage")
+        self.assertContains(response, "Your recent changes")
         self.assertContains(response, "commonground-admin.css")
 
     def test_admin_changelist_keeps_community_approval_actions(self):
