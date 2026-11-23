@@ -71,11 +71,16 @@ def _send_one(sub, payload):
 
 
 def _db(action):
-    close_old_connections()
+    # Worker threads tidy up their own connections. Inline (WEB_PUSH_SYNC) sends run
+    # on the caller's connection, which may be inside a transaction: leave it alone.
+    inline = getattr(settings, "WEB_PUSH_SYNC", False)
+    if not inline:
+        close_old_connections()
     try:
         action()
     finally:
-        close_old_connections()
+        if not inline:
+            close_old_connections()
 
 
 def _record_failure(pk, gone=False):

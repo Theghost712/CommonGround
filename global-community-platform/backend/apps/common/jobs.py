@@ -66,8 +66,6 @@ def run_due_jobs(names=None):
             ran.append(name)
         except Exception:  # one broken job must not stop the others
             logger.exception("Scheduled job %s failed", name)
-        finally:
-            close_old_connections()
     return ran
 
 
