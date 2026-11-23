@@ -5,6 +5,7 @@ dimensions (so pages reserve space and don't jump) and a dominant colour shown w
 loading. Links are signed so <img> tags can load them without the API token and the
 browser can cache them; permission is checked when the link is handed out.
 """
+import hashlib
 from django.core import signing
 from django.urls import reverse
 from PIL import Image
@@ -46,7 +47,10 @@ def video_url(attachment):
     if not attachment.file or not (attachment.content_type or "").startswith("video/"):
         return ""
     token = _signer.sign(f"{attachment.pk}:video")
-    return f"{reverse('discussion_video', args=[attachment.pk])}?t={token}"
+    # The version changes when the server swaps in the converted file, so browsers
+    # don't mix cached ranges of the original with the new one.
+    version = hashlib.sha1(attachment.file.name.encode()).hexdigest()[:10]
+    return f"{reverse('discussion_video', args=[attachment.pk])}?t={token}&v={version}"
 
 
 def check_image_token(attachment_id, token):

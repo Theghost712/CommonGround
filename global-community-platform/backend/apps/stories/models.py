@@ -26,6 +26,10 @@ class Story(models.Model):
     background = models.CharField(max_length=12, default="violet")
     alt_text = models.CharField(max_length=300, blank=True)
     duration_ms = models.PositiveIntegerField(default=5000)
+    # Server-side video conversion (apps/common/video.py).
+    processing = models.CharField(max_length=8, blank=True, default="", db_index=True)
+    processing_started_at = models.DateTimeField(null=True, blank=True)
+    processing_attempts = models.PositiveSmallIntegerField(default=0)
     audience = models.CharField(max_length=13, choices=AUDIENCES, default=FOLLOWERS)
     view_count = models.PositiveIntegerField(default=0)  # denormalised so the author's view counter never needs COUNT(*)
     created_at = models.DateTimeField(auto_now_add=True)

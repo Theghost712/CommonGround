@@ -69,3 +69,6 @@
   .reel .video-player{max-width:100%}
 }
 @media (max-width:560px){.reels-page{margin:-19px -14px -38px}}
+.video-player.is-unavailable{display:grid;place-items:center;color:#fff}
+.video-player.is-unavailable img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
+.video-player.is-unavailable p{position:relative;margin:0;padding:8px 14px;border-radius:10px;background:#000a;font-size:13px;font-weight:600}

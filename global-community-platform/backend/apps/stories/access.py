@@ -1,4 +1,5 @@
 """Who may see which stories, and short-lived signed links for story media."""
+import hashlib
 from django.core import signing
 from django.db.models import Q
 from django.urls import reverse
@@ -38,7 +39,9 @@ def media_url(request, story, viewer, kind="media"):
         return ""
     token = _signer.sign(f"{story.pk}:{viewer.pk}:{kind}")
     path = reverse("story_media", args=[story.pk])
-    return f"{path}?t={token}"
+    field = story.media if kind == "media" else story.thumbnail
+    version = hashlib.sha1(field.name.encode()).hexdigest()[:10]  # changes when a video is converted
+    return f"{path}?t={token}&v={version}"
 
 
 def check_media_token(story_id, token):

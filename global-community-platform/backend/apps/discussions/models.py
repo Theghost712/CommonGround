@@ -102,6 +102,11 @@ class DiscussionAttachment(models.Model):
     alt_text = models.CharField(max_length=300, blank=True)
     # Video posts: `file` is the video, `display`/`thumbnail` hold the poster frame.
     duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    # Server-side video conversion (apps/common/video.py): "pending" while the
+    # original is being re-encoded, "failed" when it wasn't a playable video.
+    processing = models.CharField(max_length=8, blank=True, default="", db_index=True)
+    processing_started_at = models.DateTimeField(null=True, blank=True)
+    processing_attempts = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

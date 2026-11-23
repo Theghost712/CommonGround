@@ -83,6 +83,29 @@ crontab -u commonground deploy/crontab.example                      # reminders,
 
 Check: `curl https://commonground.example/api/v1/health/` → `{"status": "ok", ...}`.
 
+### Background jobs, video conversion, upload scanning, group calls
+
+- **Jobs** (event reminders, expired stories, pending video conversions, stale calls,
+  token/session clean-up) run in a scheduler thread inside each web process when
+  `SCHEDULER_ENABLED=True` (the default with `DJANGO_ENV=production`). A shared-cache
+  lock makes each job run once per interval across all servers. Hosts without
+  always-on processes can call `GET /api/v1/internal/tick/` (the repo's GitHub
+  workflow `tick.yml` does it hourly). Set `CRON_SECRET` to require
+  `Authorization: Bearer <secret>` on that endpoint (then the workflow needs it too).
+  The crontab above still works and is harmless alongside the scheduler.
+- **Videos** are re-encoded to H.264/AAC MP4 (max 1280 px, 30 fps, metadata stripped)
+  by the ffmpeg bundled in the `imageio-ffmpeg` package; no system ffmpeg needed.
+  `VIDEO_TRANSCODE=thread|sync|off`, `VIDEO_TRANSCODE_MAX_SIDE`, `VIDEO_TRANSCODE_TIMEOUT`.
+  The original plays until the conversion finishes; files ffmpeg can't decode are deleted.
+- **Document uploads** (PDF/DOC/DOCX/TXT) are checked for disguised files, scripts in
+  PDFs, Word macros, embedded objects and remote templates. For full anti-virus,
+  run ClamAV (`apt install clamav-daemon`) and set `CLAMD_SOCKET=/var/run/clamav/clamd.ctl`
+  (or `CLAMD_HOST`/`CLAMD_PORT`). If clamd is configured but down, uploads are refused
+  unless `CLAMD_FAIL_OPEN=True`.
+- **Group calls** (group chats) are peer-to-peer meshes, capped by
+  `GROUP_CALL_MAX_PARTICIPANTS` (default 8). Each person uploads one stream per
+  participant, so large video calls need good upload bandwidth; TURN matters here too.
+
 ## 5. Go-live checklist
 
 - [ ] `deploy/manage.sh check --deploy` shows no issues

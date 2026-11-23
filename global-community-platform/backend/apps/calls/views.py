@@ -10,7 +10,7 @@ from apps.messaging.models import Conversation, ConversationMember
 from apps.messaging.services import direct_chat_blocked
 
 from .models import Call
-from .services import busy, call_data, expire_stale_calls, finish, ice_servers, push
+from .services import busy_anywhere, call_data, expire_stale_calls, finish, ice_servers, push
 
 
 def error(message, code=status.HTTP_400_BAD_REQUEST):
@@ -42,9 +42,9 @@ class StartCallView(APIView):
         if direct_chat_blocked(conversation.pk, request.user):
             return error("You can't call this person.", status.HTTP_403_FORBIDDEN)
         with transaction.atomic():
-            if busy(request.user):
+            if busy_anywhere(request.user):
                 return error("You're already in a call.", status.HTTP_409_CONFLICT)
-            if busy(other.user):
+            if busy_anywhere(other.user):
                 return error(f"{other.user.username} is on another call.", status.HTTP_409_CONFLICT)
             call = Call.objects.create(conversation=conversation, caller=request.user, callee=other.user, kind=kind)
         call = Call.objects.select_related("caller", "callee").get(pk=call.pk)

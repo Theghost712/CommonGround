@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.common import video as video_processing
 from apps.common.media import MediaRejected, check_video, process_image, ranged_file_response
 from apps.messaging.services import get_or_create_direct_conversation, send_message
 from apps.social.serializers import PersonSerializer
@@ -99,12 +100,14 @@ class StoryCreateView(APIView):
                     data["file"].name = f"clip.{extension}"
                     story.media.save(data["file"].name, data["file"], save=False)
                 story.duration_ms = data["duration_ms"]
+                story.processing = video_processing.initial_status()
                 if data.get("thumbnail"):
                     _, thumb, _ = process_image(data["thumbnail"])  # poster frame captured by the browser
                     story.thumbnail.save(thumb.name, thumb, save=False)
             else:
                 story.duration_ms = min(15000, max(5000, len(story.text) * 60))
             story.save()
+            video_processing.schedule(story)
         except MediaRejected as error:
             story.delete_files()
             if claimed is not None:

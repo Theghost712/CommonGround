@@ -38,7 +38,7 @@ class TempMediaTestRunner(DiscoverRunner):
         for alias in connections:
             connections[alias].settings_dict.get("OPTIONS", {}).pop("pool", None)
         self._media_root = tempfile.mkdtemp(prefix="commonground-test-media-")
-        self._media_override = override_settings(MEDIA_ROOT=self._media_root)
+        self._media_override = override_settings(MEDIA_ROOT=self._media_root, VIDEO_TRANSCODE="off", SCHEDULER_ENABLED=False)
         self._media_override.enable()
         self._throttle_rates = SimpleRateThrottle.THROTTLE_RATES
         SimpleRateThrottle.THROTTLE_RATES = {**self._throttle_rates, "auth": None, "uploads": None, "account_email": None, "calls": None}

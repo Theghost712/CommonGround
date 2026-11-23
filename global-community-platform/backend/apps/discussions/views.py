@@ -260,7 +260,9 @@ class DiscussionViewSet(viewsets.ModelViewSet):
         uploaded = request.FILES.get("file")
         if not uploaded:
             raise ValidationError({"file": "Choose a file to upload."})
-        if (uploaded.content_type or "").startswith("image/") and Path(uploaded.name).suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        # Any image is decoded and re-encoded (whatever content type the browser claimed),
+        # so the stored file is one the server wrote.
+        if Path(uploaded.name).suffix.lower() in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
             from apps.common.media import MediaRejected
 
             from .posts import attach_photo
@@ -276,6 +278,14 @@ class DiscussionViewSet(viewsets.ModelViewSet):
             raise ValidationError({"file": "Allowed files: JPG, PNG, GIF, WEBP, PDF, DOC, DOCX, and TXT."})
         if uploaded.size > MAX_ATTACHMENT_SIZE:
             raise ValidationError({"file": "File size must not exceed 10 MB."})
+        from apps.common.scanning import UnsafeFile, scan_document
+
+        try:
+            data = uploaded.read()
+            uploaded.seek(0)
+            scan_document(data, extension)
+        except UnsafeFile as error:
+            raise ValidationError({"file": str(error)})
         attachment = DiscussionAttachment.objects.create(discussion=discussion, uploaded_by=request.user, file=uploaded, original_name=Path(uploaded.name.replace("\\", "/")).name[:255], content_type=content_type, size=uploaded.size)
         return Response(DiscussionAttachmentSerializer(attachment, context={"request": request}).data, status=status.HTTP_201_CREATED)
 

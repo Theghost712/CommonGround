@@ -19,7 +19,7 @@ class StorySerializer(serializers.ModelSerializer):
         model = Story
         fields = [
             "id", "media_type", "media_url", "thumbnail_url", "text", "background", "alt_text",
-            "duration_ms", "audience", "created_at", "expires_at", "seen", "view_count", "is_own",
+            "duration_ms", "audience", "processing", "created_at", "expires_at", "seen", "view_count", "is_own",
         ]
 
     def _viewer(self):

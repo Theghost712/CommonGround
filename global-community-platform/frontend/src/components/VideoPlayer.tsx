@@ -49,6 +49,13 @@ export default function VideoPlayer({ file, fill = false, className = '' }: { fi
     setMuted(video.muted)
   }
 
+  if (file.processing === 'failed' || !file.video_url) {
+    return <div className={`video-player is-unavailable ${fill ? 'is-fill' : ''} ${className}`} style={fill ? undefined : { aspectRatio: ratio, backgroundColor: file.color || '#111' }}>
+      {file.display_url && <img src={file.display_url} alt="" />}
+      <p role="status">This video couldn't be processed.</p>
+    </div>
+  }
+
   return <div className={`video-player ${fill ? 'is-fill' : ''} ${className}`} style={fill ? undefined : { aspectRatio: ratio, backgroundColor: file.color || '#111' }}>
     <video
       ref={videoRef}

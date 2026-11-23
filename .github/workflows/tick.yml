@@ -1,0 +1,18 @@
+name: Scheduled jobs
+# Vercel has no crontab and Hobby cron runs once a day, so GitHub wakes the site
+# hourly to run due background jobs (event reminders, story clean-up, video
+# processing, stale calls). The web process also runs them while it's awake.
+# The endpoint is safe to call publicly: every job is idempotent and runs at most
+# once per interval.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run due jobs on the live site
+        run: curl --fail --silent --show-error --max-time 120 --retry 2 --retry-delay 20 https://commonground-pearl.vercel.app/api/v1/internal/tick/

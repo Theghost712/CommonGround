@@ -69,7 +69,7 @@ export default function StoryViewer({ entries, startIndex = 0, onClose }: { entr
 
   // Timer for photos and text; videos report their own progress.
   useEffect(() => {
-    if (!story || story.media_type === 'video' || isPaused) return
+    if (!story || (story.media_type === 'video' && story.media_url) || isPaused) return
     const started = performance.now() - progress * story.duration_ms
     let frame = 0
     const tick = (now: number) => {
@@ -194,7 +194,8 @@ export default function StoryViewer({ entries, startIndex = 0, onClose }: { entr
 
       <div className="story-stage" onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerLeave={() => clearTimeout(pressTimer.current)} onContextMenu={(event) => event.preventDefault()}>
         {story.media_type === 'image' && <img src={story.media_url} alt={story.alt_text || `Story from ${entry.user.username}`} draggable={false} />}
-        {story.media_type === 'video' && <video
+        {story.media_type === 'video' && !story.media_url && <div className="story-text-card bg-night"><p>This video couldn't be processed.</p></div>}
+        {story.media_type === 'video' && story.media_url && <video
           key={story.id}
           ref={videoRef}
           src={story.media_url}

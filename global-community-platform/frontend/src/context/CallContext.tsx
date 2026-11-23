@@ -36,18 +36,22 @@ type CallValue = CallState & {
   toggleMute: () => void
   toggleCamera: () => void
   dismiss: () => void
+  /** Group calls share this signalling socket. */
+  sendRaw: (frame: Record<string, unknown>) => boolean
+  subscribe: (listener: (event: SocketEvent) => void) => () => void
 }
+export type SocketEvent = { type?: string; [key: string]: unknown }
 
 const RING_TIMEOUT_MS = 45_000
 const idle: CallState = { phase: 'idle', call: null, message: '', startedAt: null, localStream: null, remoteStream: null, muted: false, cameraOff: false }
 const END_MESSAGES: Record<string, string> = { declined: 'Call declined', missed: 'No answer', cancelled: 'Call cancelled', ended: 'Call ended', failed: "Couldn't connect" }
 // Identifies this tab, so only the tab that answered handles the call.
-const deviceId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `tab-${Math.random().toString(36).slice(2)}`
+export const deviceId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : `tab-${Math.random().toString(36).slice(2)}`
 
 export const callsSupported = () => typeof window !== 'undefined' && typeof RTCPeerConnection !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia)
 
 /** A gentle two-tone ring made with Web Audio (no audio files to load). */
-function createRinger() {
+export function createRinger() {
   let context: AudioContext | null = null
   let timer: ReturnType<typeof setInterval> | null = null
   const beep = () => {
@@ -80,7 +84,7 @@ function createRinger() {
   }
 }
 
-function mediaError(err: unknown, kind: CallKind): string {
+export function mediaError(err: unknown, kind: CallKind): string {
   const name = (err as { name?: string })?.name
   if (name === 'NotAllowedError' || name === 'SecurityError') return `Allow ${kind === 'video' ? 'camera and microphone' : 'microphone'} access in your browser to call.`
   if (name === 'NotFoundError') return kind === 'video' ? 'No camera or microphone was found.' : 'No microphone was found.'
@@ -105,6 +109,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const ringTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const available = callsSupported()
+  const listeners = useRef(new Set<(event: SocketEvent) => void>())
 
   const send = useCallback((callId: number, data: Signal) => {
     const socket = socketRef.current
@@ -292,7 +297,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
             if (active.call?.status === 'ringing' && active.call.callee.id === user.id && stateRef.current.phase === 'idle') void onEventRef.current({ type: 'call.incoming', call: active.call })
           }).catch(() => {})
         }
-        socket.onmessage = (event) => { try { void onEventRef.current(JSON.parse(event.data)) } catch { /* ignore bad frames */ } }
+        socket.onmessage = (event) => {
+          let frame: SocketEvent
+          try { frame = JSON.parse(event.data) } catch { return }
+          if (typeof frame.type === 'string' && frame.type.startsWith('group_call.')) {
+            listeners.current.forEach((listener) => { try { listener(frame) } catch { /* a broken listener must not stop the others */ } })
+            return
+          }
+          void onEventRef.current(frame as Parameters<typeof onEvent>[0])
+        }
         socket.onclose = () => {
           if (socketRef.current === socket) socketRef.current = null
           if (stopped) return
@@ -321,10 +334,20 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setState((current) => ({ ...current, cameraOff: !track.enabled }))
   }, [])
   const dismiss = useCallback(() => setState((current) => current.phase === 'ended' ? idle : current), [])
+  const sendRaw = useCallback((frame: Record<string, unknown>) => {
+    const socket = socketRef.current
+    if (socket?.readyState !== WebSocket.OPEN) return false
+    socket.send(JSON.stringify(frame))
+    return true
+  }, [])
+  const subscribe = useCallback((listener: (event: SocketEvent) => void) => {
+    listeners.current.add(listener)
+    return () => { listeners.current.delete(listener) }
+  }, [])
 
   const value = useMemo<CallValue>(() => ({
-    ...state, available, startCall, accept, decline, hangUp: () => hangUp(false), toggleMute, toggleCamera, dismiss,
-  }), [state, available, startCall, accept, decline, hangUp, toggleMute, toggleCamera, dismiss])
+    ...state, available, startCall, accept, decline, hangUp: () => hangUp(false), toggleMute, toggleCamera, dismiss, sendRaw, subscribe,
+  }), [state, available, startCall, accept, decline, hangUp, toggleMute, toggleCamera, dismiss, sendRaw, subscribe])
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>
 }
 

@@ -13,6 +13,7 @@ import uuid
 
 from django.core.files.base import ContentFile
 
+from apps.common import video as video_processing
 from apps.common.media import MediaRejected, check_video, process_image, ranged_file_response
 from apps.communities.models import Community, CommunityMembership
 from apps.notifications.services import create_mention_notifications
@@ -129,8 +130,9 @@ class VideoPostCreateView(APIView):
     """POST /posts/video/ (multipart): video, poster (frame captured by the browser),
     duration_ms, caption, alt_text, category, community.
 
-    There is no ffmpeg on the server, so the video is checked by signature and size
-    and stored as uploaded; the browser supplies the poster frame and duration.
+    The video is checked by signature and size and stored as uploaded, then
+    re-encoded to H.264/AAC MP4 in the background (apps/common/video.py); the
+    browser supplies the poster frame and duration.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -190,7 +192,9 @@ class VideoPostCreateView(APIView):
                     attachment.file.save(f"{uuid.uuid4().hex}.{extension}", video, save=False)
                 attachment.display.save(display.name, display, save=False)
                 attachment.thumbnail.save(thumb.name, thumb, save=False)
+                attachment.processing = video_processing.initial_status()
                 attachment.save()
+                video_processing.schedule(attachment)
         except Exception:
             if attachment is not None:
                 for field in (attachment.file, attachment.display, attachment.thumbnail):

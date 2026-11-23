@@ -31,11 +31,14 @@ class CallsConsumer(AsyncJsonWebsocketConsumer):
         if kind == "ping":
             await self.send_json({"type": "pong"})
             return
-        if kind != "signal":
+        if kind not in ("signal", "group_signal"):
             return
         self.signals += 1
         if self.signals > MAX_SIGNALS_PER_CONNECTION:
             await self.close(code=4429)
+            return
+        if kind == "group_signal":
+            await self.relay_group_signal(content)
             return
         data = clean_signal(content.get("data"))
         try:
@@ -52,6 +55,30 @@ class CallsConsumer(AsyncJsonWebsocketConsumer):
             "type": "call.signal", "call_id": call_id, "data": data, "from": self.user.id,
             "device_id": str(content.get("device_id", ""))[:64],
         }})
+
+    async def relay_group_signal(self, content):
+        data = clean_signal(content.get("data"))
+        try:
+            call_id, target_id = int(content.get("group_call_id")), int(content.get("to"))
+        except (TypeError, ValueError):
+            return
+        if data is None:
+            return
+        device = str(content.get("device_id", ""))[:64]
+        target_device = await self.group_target(call_id, device, target_id)
+        if target_device is None:
+            await self.send_json({"type": "group_call.error", "group_call_id": call_id, "to": target_id, "detail": "That person isn't in this call."})
+            return
+        await self.channel_layer.group_send(user_group(target_id), {"type": "call.event", "data": {
+            "type": "group_call.signal", "group_call_id": call_id, "data": data, "from": self.user.id,
+            "to_device": target_device,
+        }})
+
+    @database_sync_to_async
+    def group_target(self, call_id, device, target_id):
+        from .group import group_signal_target
+
+        return group_signal_target(call_id, self.user.id, device, target_id)
 
     @database_sync_to_async
     def peer_for(self, call_id):

@@ -158,7 +158,8 @@ class MediaLinkTests(StoryBase):
         self.assertEqual(len(part.content), 100)
 
     def test_tampered_or_expired_links_are_refused(self):
-        tampered = self.url[:-3] + "abc"
+        cut = self.url.index("&v=")  # tamper with the signature, not the cache-busting version
+        tampered = self.url[:cut - 3] + "abc" + self.url[cut:]
         self.assertEqual(APIClient().get(tampered).status_code, 403)
         with mock.patch("apps.stories.access.MEDIA_LINK_SECONDS", -1):
             self.assertEqual(APIClient().get(self.url).status_code, 403)

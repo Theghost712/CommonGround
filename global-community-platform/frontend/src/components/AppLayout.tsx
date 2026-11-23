@@ -25,6 +25,8 @@ import { PresenceProvider, usePresence } from '../context/PresenceContext'
 import { useNotificationAlerts } from '../context/notificationAlerts'
 import { CallProvider } from '../context/CallContext'
 import CallScreen from './CallScreen'
+import GroupCallScreen, { GroupCallInvite } from './GroupCallScreen'
+import { GroupCallProvider } from '../context/GroupCallContext'
 import { api, getErrorMessage } from '../services/api'
 import '../account-security.css'
 
@@ -110,8 +112,12 @@ export default function AppLayout() {
     <PresenceProvider>
       <NotificationsProvider>
         <CallProvider>
-          <AppLayoutContent />
-          <CallScreen />
+          <GroupCallProvider>
+            <AppLayoutContent />
+            <CallScreen />
+            <GroupCallScreen />
+            <GroupCallInvite />
+          </GroupCallProvider>
         </CallProvider>
       </NotificationsProvider>
     </PresenceProvider>

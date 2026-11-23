@@ -55,6 +55,8 @@ export type DiscussionAttachment = {
   is_video?: boolean
   video_url?: string
   duration_ms?: number | null
+  /** Server-side video conversion: "pending" while it runs, "failed" if it wasn't a playable video. */
+  processing?: '' | 'pending' | 'failed'
 }
 
 export type DiscussionCategory = { name: string; count: number }
@@ -185,6 +187,7 @@ export type Story = {
   alt_text: string
   duration_ms: number
   audience: 'followers' | 'close_friends'
+  processing?: '' | 'pending' | 'failed'
   created_at: string
   expires_at: string
   seen: boolean

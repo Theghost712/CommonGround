@@ -21,7 +21,7 @@ class DiscussionAttachmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DiscussionAttachment
-        fields = ["id", "original_name", "content_type", "size", "url", "is_image", "is_video", "display_url", "thumb_url", "video_url", "duration_ms", "width", "height", "color", "alt_text", "created_at"]
+        fields = ["id", "original_name", "content_type", "size", "url", "is_image", "is_video", "display_url", "thumb_url", "video_url", "duration_ms", "width", "height", "color", "alt_text", "processing", "created_at"]
 
     def get_is_video(self, obj):
         return (obj.content_type or "").startswith("video/")

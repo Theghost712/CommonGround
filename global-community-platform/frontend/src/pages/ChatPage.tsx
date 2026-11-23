@@ -10,6 +10,7 @@ import '../chat.css'
 import { useAuth } from '../context/AuthContext'
 import type { Paginated } from '../types'
 import { useCall, type CallKind } from '../context/CallContext'
+import { useGroupCall } from '../context/GroupCallContext'
 import { Phone as PhoneIcon, Video as VideoIcon } from 'lucide-react'
 import '../calls.css'
 
@@ -22,6 +23,25 @@ function CallButtons({ conversationId }: { conversationId: number }) {
   return <>
     <button className="icon-button chat-call-button" title="Voice call" aria-label="Voice call" disabled={busy} onClick={() => start('audio')}><PhoneIcon size={18} /></button>
     <button className="icon-button chat-call-button" title="Video call" aria-label="Video call" disabled={busy} onClick={() => start('video')}><VideoIcon size={19} /></button>
+    {error && <div className="chat-call-error" role="alert" onClick={() => setError('')}>{error}</div>}
+  </>
+}
+
+function GroupCallButtons({ conversationId }: { conversationId: number }) {
+  const call = useCall()
+  const group = useGroupCall()
+  const [error, setError] = useState('')
+  if (!group.available) return null
+  const busy = (call.phase !== 'idle' && call.phase !== 'ended') || (group.phase !== 'idle' && group.phase !== 'ended')
+  const live = group.liveCalls[conversationId]
+  const start = (kind: CallKind) => { setError(''); group.join(conversationId, kind).catch((err: Error) => setError(err.message)) }
+  return <>
+    {live ? <button className="chat-join-call" disabled={busy} onClick={() => start(live.kind)} title={`Join the ${live.kind === 'video' ? 'video' : 'voice'} call`}>
+      {live.kind === 'video' ? <VideoIcon size={14} /> : <PhoneIcon size={14} />} Join · {live.participants.length}
+    </button> : <>
+      <button className="icon-button chat-call-button" title="Group voice call" aria-label="Group voice call" disabled={busy} onClick={() => start('audio')}><PhoneIcon size={18} /></button>
+      <button className="icon-button chat-call-button" title="Group video call" aria-label="Group video call" disabled={busy} onClick={() => start('video')}><VideoIcon size={19} /></button>
+    </>}
     {error && <div className="chat-call-error" role="alert" onClick={() => setError('')}>{error}</div>}
   </>
 }
@@ -320,7 +340,7 @@ export default function ChatPage() {
 
       <main className="chat-main">
         {selectedConversation ? <>
-          <header className="chat-header"><button className="chat-mobile-back" onClick={() => setMobileShowChat(false)} aria-label="Back to conversations"><ArrowLeft size={18} /></button><div className={`chat-list-avatar chat-header-avatar ${selectedConversation.conversation_type === 'group' ? 'group' : ''}`}>{initials(selectedConversation.display_title)}</div><div className="chat-header-copy"><h2>{selectedConversation.display_title}</h2><span>{selectedConversation.conversation_type === 'group' ? `${selectedConversation.members.length} participants` : selectedConversation.other_user && onlineUsers.includes(selectedConversation.other_user.id) ? 'Online now' : 'Direct conversation'}</span></div><div className={`socket-indicator ${socketStatus}`} title={`Realtime connection ${socketStatus}`}>{socketStatus === 'connected' ? <Wifi size={15} /> : <WifiOff size={15} />}<span>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</span></div>{selectedConversation.conversation_type === 'direct' && <CallButtons conversationId={selectedConversation.id} />}<button className="icon-button" title="Conversation details" aria-label="Conversation details" onClick={() => setShowDetails(true)}><MoreHorizontal size={19} /></button></header>
+          <header className="chat-header"><button className="chat-mobile-back" onClick={() => setMobileShowChat(false)} aria-label="Back to conversations"><ArrowLeft size={18} /></button><div className={`chat-list-avatar chat-header-avatar ${selectedConversation.conversation_type === 'group' ? 'group' : ''}`}>{initials(selectedConversation.display_title)}</div><div className="chat-header-copy"><h2>{selectedConversation.display_title}</h2><span>{selectedConversation.conversation_type === 'group' ? `${selectedConversation.members.length} participants` : selectedConversation.other_user && onlineUsers.includes(selectedConversation.other_user.id) ? 'Online now' : 'Direct conversation'}</span></div><div className={`socket-indicator ${socketStatus}`} title={`Realtime connection ${socketStatus}`}>{socketStatus === 'connected' ? <Wifi size={15} /> : <WifiOff size={15} />}<span>{socketStatus === 'connected' ? 'Live' : socketStatus === 'connecting' ? 'Connecting' : 'Offline'}</span></div>{selectedConversation.conversation_type === 'direct' ? <CallButtons conversationId={selectedConversation.id} /> : <GroupCallButtons conversationId={selectedConversation.id} />}<button className="icon-button" title="Conversation details" aria-label="Conversation details" onClick={() => setShowDetails(true)}><MoreHorizontal size={19} /></button></header>
           <div className="chat-message-area">
             {messagesQuery.isLoading && <div className="chat-list-hint">Loading messages…</div>}
             {messagesQuery.isError && <div className="chat-list-error">{getErrorMessage(messagesQuery.error)}</div>}

@@ -50,8 +50,15 @@ def expire_stale_calls():
 
 
 def busy(user):
+    """In a live one-to-one call (ringing or answered)? Group calls: see group.in_group_call."""
     return Call.objects.filter(Q(caller=user) | Q(callee=user), status__in=Call.LIVE,
                                created_at__gte=timezone.now() - timedelta(hours=6)).exists()
+
+
+def busy_anywhere(user):
+    from .group import in_group_call
+
+    return busy(user) or in_group_call(user)
 
 
 def finish(call, status, notify=True, by=None):

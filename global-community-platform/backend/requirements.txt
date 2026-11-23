@@ -16,3 +16,4 @@ django-storages[s3]>=1.14,<2
 channels-postgres>=1.1.4,<2
 cryptography>=42,<52
 pywebpush>=2.0,<3
+imageio-ffmpeg>=0.6,<1

@@ -410,6 +410,23 @@ PRODUCTION_REQUIRED_SETTINGS = (
     "DATABASE_URL",
     "REDIS_URL",
 )
+# Background jobs (event reminders, story clean-up, video processing, stale calls)
+# run in a scheduler thread of each web process; see apps/common/jobs.py.
+SCHEDULER_ENABLED = os.getenv("SCHEDULER_ENABLED", "True" if DJANGO_ENV == "production" else "False").lower() == "true"
+CRON_SECRET = os.getenv("CRON_SECRET", "")
+# Server-side video conversion to H.264/AAC MP4 (bundled ffmpeg from imageio-ffmpeg).
+# "thread" converts in the background after upload, "sync" inside the request
+# (tests), "off" keeps the uploaded file as it is.
+VIDEO_TRANSCODE = os.getenv("VIDEO_TRANSCODE", "thread").strip().lower()
+VIDEO_TRANSCODE_MAX_SIDE = int(os.getenv("VIDEO_TRANSCODE_MAX_SIDE", "1280"))
+VIDEO_TRANSCODE_TIMEOUT = int(os.getenv("VIDEO_TRANSCODE_TIMEOUT", "240"))
+# Optional ClamAV daemon for document uploads (built-in checks always run).
+CLAMD_HOST = os.getenv("CLAMD_HOST", "")
+CLAMD_PORT = int(os.getenv("CLAMD_PORT", "3310"))
+CLAMD_SOCKET = os.getenv("CLAMD_SOCKET", "")
+CLAMD_FAIL_OPEN = os.getenv("CLAMD_FAIL_OPEN", "False").lower() == "true"
+# Group calls are a full mesh (everyone sends to everyone), so keep them small.
+GROUP_CALL_MAX_PARTICIPANTS = int(os.getenv("GROUP_CALL_MAX_PARTICIPANTS", "8"))
 if os.getenv("CHANNEL_LAYER") == "postgres":
     # PostgreSQL replaces Redis for the shared cache and live events.
     PRODUCTION_REQUIRED_SETTINGS = tuple(name for name in PRODUCTION_REQUIRED_SETTINGS if name != "REDIS_URL")

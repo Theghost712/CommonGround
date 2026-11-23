@@ -1,3 +1,4 @@
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib import admin
 from django.urls import include, path, re_path
 from rest_framework.routers import DefaultRouter
@@ -33,11 +34,13 @@ router.register("notifications", NotificationViewSet, basename="notification")
 router.register("events", CommunityEventViewSet, basename="event")
 
 from apps.common.health import health
+from apps.common.jobs import tick_view
 from apps.common.spa import spa_index
 from apps.common.uploads import UploadConfigView, UploadRequestView
 
 urlpatterns = [
     path("api/v1/health/", health, name="health"),
+    path("api/v1/internal/tick/", csrf_exempt(tick_view), name="internal_tick"),
     path("api/v1/uploads/", UploadRequestView.as_view(), name="upload_request"),
     path("api/v1/uploads/config/", UploadConfigView.as_view(), name="upload_config"),
     path("admin/", admin.site.urls),

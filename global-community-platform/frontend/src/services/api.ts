@@ -1,12 +1,13 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
+export const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 export const api = axios.create({ baseURL: API_BASE, withCredentials: true, headers: { 'Content-Type': 'application/json' } })
 
 let accessToken: string | null = null
 let csrfToken: string | null = null
 let csrfRequest: Promise<string> | null = null
 export const setAccessToken = (token: string | null) => { accessToken = token }
+export const getAccessToken = () => accessToken
 
 export async function ensureCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken
