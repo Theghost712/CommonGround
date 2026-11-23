@@ -11,6 +11,7 @@ import {
 } from '../social/contacts'
 import type { Paginated, Person } from '../types'
 import '../social.css'
+import '../home-feed.css'  // shared .home-tabs styles
 
 type OwnProfile = { phone_number: string; discoverable_by_contacts: boolean }
 type MatchResult = { members: Person[]; invitable: Contact[]; checked: number }

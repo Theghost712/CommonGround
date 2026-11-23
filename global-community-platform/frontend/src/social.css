@@ -221,5 +221,7 @@ a.avatar-small{color:#5f52ca}
 .invite-row-actions .follow-button{display:inline-flex;align-items:center;gap:5px}
 .invite-channel{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#f0efff;color:#5145c5}
 .invite-channel.is-whatsapp{background:#e7f8ee;color:#1f8f4e}
-.discover-tabs{margin-bottom:10px}
+.discover-tabs{margin-bottom:10px;position:static}
 .discover-more{justify-self:center;margin-top:10px}
+/* Grid children default to min-width:auto; let the long invite link shrink instead of widening the page. */
+.invite-card>*,.invite-link-row{min-width:0}

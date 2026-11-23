@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { api, getErrorMessage } from '../services/api'
 import '../moderation.css'
+import '../home-feed.css'  // shared .home-tabs styles
 
 type Person = { id: number; username: string; display_name: string; is_active: boolean; is_staff: boolean; suspended_until: string | null }
 type QueueItem = {
