@@ -62,9 +62,9 @@ class PasswordResetRequestView(SecurityThrottleMixin, APIView):
         if not login:
             return Response({"login": ["Enter your username or email address."]}, status=status.HTTP_400_BAD_REQUEST)
         field = "email__iexact" if "@" in login else "username__iexact"
+        # Passwordless accounts (Google sign-in only) get the email too: the reset link is how they set a password.
         for user in User.objects.filter(**{field: login}, is_active=True).exclude(email="")[:5]:
-            if user.has_usable_password():
-                send_password_reset_email(user)
+            send_password_reset_email(user)
         return no_store(Response({"detail": RESET_SENT}))
 
 

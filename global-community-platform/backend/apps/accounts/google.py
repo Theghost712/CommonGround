@@ -5,7 +5,8 @@ browser posts here. We verify it with Google's published keys (signature, audien
 our client id, issuer, expiry, email_verified), then:
 
 1. a linked account (same Google "sub")      → sign in;
-2. an account with the same confirmed-at-Google email → link it and sign in;
+2. an account with the same email, already confirmed here → link it and sign in
+   (an unconfirmed one is refused, see account_for);
 3. otherwise                                  → create an account (email marked
    confirmed, no password; one can be set later with "Forgot password").
 
@@ -73,14 +74,27 @@ def _username_for(claims):
     return candidate
 
 
+class UnconfirmedAccountError(Exception):
+    """An account with this email exists but its address was never confirmed."""
+
+
 def account_for(claims, invited_by=""):
-    """Find, link or create the account for verified Google claims."""
+    """Find, link or create the account for verified Google claims.
+
+    An existing account is linked only when its email was already confirmed. Anyone can
+    register with someone else's address and leave it unconfirmed; linking Google to such
+    an account would hand the real owner an account the registrant can still sign in to.
+    """
     sub, email = str(claims["sub"]), claims["email"].strip().lower()
     link = SocialLogin.objects.select_related("user").filter(provider=SocialLogin.GOOGLE, uid=sub).first()
     if link:
         SocialLogin.objects.filter(pk=link.pk).update(last_used_at=timezone.now(), email=email)
         return link.user, False
     user = User.objects.filter(email__iexact=email).order_by("pk").first()
+    if user is not None:
+        confirmed = UserProfile.objects.filter(user=user, email_verified_at__isnull=False).exists()
+        if not confirmed:
+            raise UnconfirmedAccountError()
     created = False
     with transaction.atomic():
         if user is None:
@@ -88,8 +102,8 @@ def account_for(claims, invited_by=""):
                         first_name=(claims.get("given_name") or "")[:150], last_name=(claims.get("family_name") or "")[:150])
             user.set_unusable_password()
             user.save()
+            UserProfile.objects.update_or_create(user=user, defaults={"email_verified_at": timezone.now()})
             created = True
-        UserProfile.objects.update_or_create(user=user, defaults={"email_verified_at": timezone.now()})
         try:
             SocialLogin.objects.create(user=user, provider=SocialLogin.GOOGLE, uid=sub, email=email, last_used_at=timezone.now())
         except IntegrityError:
@@ -124,7 +138,13 @@ class GoogleSignInView(APIView):
             claims = verify_google_token(str(request.data.get("credential", "")))
         except GoogleTokenError as error:
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-        user, created = account_for(claims, str(request.data.get("invited_by", ""))[:150])
+        try:
+            user, created = account_for(claims, str(request.data.get("invited_by", ""))[:150])
+        except UnconfirmedAccountError:
+            return Response({
+                "detail": "An account with this email address hasn't been confirmed yet. Use \"Forgot password\" to confirm it, then sign in with Google again.",
+                "code": "email_unconfirmed",
+            }, status=status.HTTP_400_BAD_REQUEST)
         if not user.is_active:
             return Response({"detail": "This account is disabled."}, status=status.HTTP_403_FORBIDDEN)
         response = complete_sign_in(user)

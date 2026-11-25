@@ -4,7 +4,9 @@ from unittest import mock
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient, APITestCase
 
 from apps.social.models import Follow
@@ -54,11 +56,31 @@ class GoogleSignInTests(APITestCase):
         self.assertFalse(again.data["created"], "same Google account, same member")
         self.assertEqual(User.objects.count(), 1)
 
-    def test_existing_account_with_same_email_is_linked(self):
+    def test_existing_confirmed_account_with_same_email_is_linked(self):
         existing = User.objects.create_user("neema_k", "Neema@Gmail.com", "pw-12345-x")
+        UserProfile.objects.update_or_create(user=existing, defaults={"email_verified_at": timezone.now()})
         response = self.sign_in(token())
         self.assertFalse(response.data["created"])
         self.assertTrue(SocialLogin.objects.filter(user=existing, uid="g-1001").exists())
+
+    def test_unconfirmed_account_with_same_email_is_not_taken_over(self):
+        # Someone registered with this address and never confirmed it: Google must not attach to that account.
+        squatter = User.objects.create_user("squatter", "neema@gmail.com", "pw-12345-x")
+        response = self.sign_in(token())
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["code"], "email_unconfirmed")
+        self.assertNotIn("access", response.data)
+        self.assertFalse(SocialLogin.objects.filter(user=squatter).exists())
+        self.assertFalse(UserProfile.objects.filter(user=squatter, email_verified_at__isnull=False).exists())
+
+    def test_google_only_account_can_ask_for_a_password_reset(self):
+        self.sign_in(token())
+        user = User.objects.get(email="neema@gmail.com")
+        self.assertFalse(user.has_usable_password())
+        response = APIClient(enforce_csrf_checks=False).post("/api/v1/auth/password/reset/", {"login": "neema@gmail.com"}, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["neema@gmail.com"])
 
     def test_bad_tokens_are_refused(self):
         self.assertEqual(self.sign_in(token(aud="someone-else")).status_code, 400)
@@ -72,6 +94,7 @@ class GoogleSignInTests(APITestCase):
         from .models import TwoFactorAuth
 
         user = User.objects.create_user("neema_k", "neema@gmail.com", "pw-12345-x")
+        UserProfile.objects.update_or_create(user=user, defaults={"email_verified_at": timezone.now()})
         TwoFactorAuth.objects.create(user=user, secret_encrypted="x", confirmed_at="2026-01-01T00:00:00Z")
         response = self.sign_in(token())
         self.assertTrue(response.data["two_factor_required"])
