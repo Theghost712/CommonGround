@@ -28,6 +28,7 @@ import { CallProvider } from '../context/CallContext'
 import CallScreen from './CallScreen'
 import GroupCallScreen, { GroupCallInvite } from './GroupCallScreen'
 import InstallPrompt from './InstallPrompt'
+import PushPrompt from './PushPrompt'
 import { GroupCallProvider } from '../context/GroupCallContext'
 import { api, getErrorMessage } from '../services/api'
 import '../account-security.css'
@@ -121,6 +122,7 @@ export default function AppLayout() {
             <GroupCallScreen />
             <GroupCallInvite />
             <InstallPrompt />
+            <PushPrompt />
           </GroupCallProvider>
         </CallProvider>
       </NotificationsProvider>
