@@ -11,12 +11,20 @@ class UserSerializer(serializers.ModelSerializer):
     email_verified = serializers.SerializerMethodField()
     two_factor_enabled = serializers.SerializerMethodField()
     can_moderate = serializers.SerializerMethodField()
+    has_password = serializers.SerializerMethodField()
+    google_linked = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "email_verified", "two_factor_enabled", "can_moderate", "is_staff", "first_name", "last_name", "date_joined"]
+        fields = ["id", "username", "email", "email_verified", "two_factor_enabled", "can_moderate", "is_staff", "first_name", "last_name", "date_joined", "has_password", "google_linked"]
         # Email changes go through /auth/email/change/ (password + confirmation link).
         read_only_fields = ["id", "email", "is_staff", "date_joined"]
+
+    def get_has_password(self, user):
+        return user.has_usable_password()
+
+    def get_google_linked(self, user):
+        return user.social_logins.filter(provider="google").exists()
 
     def get_can_moderate(self, user):
         from apps.moderation.services import can_moderate

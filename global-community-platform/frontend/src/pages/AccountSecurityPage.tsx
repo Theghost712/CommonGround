@@ -115,7 +115,8 @@ function SessionsSection() {
 }
 
 function DeleteAccountSection() {
-  const { applySession } = useAuth()
+  const { applySession, user } = useAuth()
+  const hasPassword = user?.has_password !== false
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ password: '', code: '', confirm: '' })
@@ -140,7 +141,7 @@ function DeleteAccountSection() {
   return <Card icon={<Trash2 size={16} />} title="Delete account" help="Permanently deletes your profile, posts, comments, stories and messages. Communities and group chats you created pass to another member. This can't be undone.">
     {!open ? <div className="security-actions is-start"><button type="button" className="button button-danger-outline" onClick={() => setOpen(true)}>Delete my account…</button></div>
       : <form className="security-form" onSubmit={submit}>
-        <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
+        {hasPassword && <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>}
         {twoFactor && <label>Authenticator or recovery code<input required inputMode="text" autoComplete="one-time-code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>}
         <label>Type DELETE to confirm<input required autoComplete="off" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} /></label>
         <Feedback result={result} />

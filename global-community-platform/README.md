@@ -48,6 +48,12 @@ A community discussion platform built with **React 19 + TypeScript + Vite** and 
 **Voice and video calls**
 - One-to-one WebRTC calls from any direct chat: ringing on every open tab (answering in one stops the others), mute, camera on/off, a call timer, and a "📞 Video call · 2:31" or "Missed call" line in the chat. Media goes directly between the two browsers; the server only relays the call setup. Calls across different networks need a TURN server (see `docs/DEPLOY.md`).
 
+**Group calls, two-step sign-in and push**
+- Group video calls (up to `GROUP_CALL_MAX_PARTICIPANTS`, default 8) started from any group chat. Calls are a full mesh, so keep them small.
+- Two-step sign-in with an authenticator app (TOTP) and one-time recovery codes. Secrets are encrypted with `TWO_FACTOR_ENCRYPTION_KEY`.
+- Web Push notifications to browsers that are closed, once the user turns them on (needs the `VAPID_*` settings).
+- Uploaded videos are converted to H.264/AAC MP4 in the background (`VIDEO_TRANSCODE`), and images are re-encoded.
+
 **Events**
 - Community events with RSVPs, attendee lists, cancellation, a calendar view, and reminders sent by a scheduled management command.
 
@@ -56,7 +62,10 @@ A community discussion platform built with **React 19 + TypeScript + Vite** and 
 
 ## Not implemented yet
 
-Group calls, push notifications to closed apps (pop-ups need an open tab), two-factor sign-in, server-side video transcoding (videos are stored as uploaded), file virus scanning, and analytics.
+- **Sign in with Google** is being finished: the code is in `apps/accounts/google.py`, but it switches on only when `GOOGLE_CLIENT_ID` is set, and it is not yet committed.
+- **Virus scanning** is limited to built-in checks on documents. Full ClamAV scanning runs only when `CLAMD_HOST` or `CLAMD_SOCKET` is set (no ClamAV daemon is available on Vercel).
+- **Analytics** (product usage tracking) is not implemented.
+
 
 ## Requirements
 

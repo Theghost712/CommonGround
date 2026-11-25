@@ -39,6 +39,7 @@ from apps.common.jobs import tick_view
 from apps.messaging import media as chat_media
 from apps.discussions import feed
 from apps.common.search import SearchView
+from apps.accounts.google import AuthProvidersView, GoogleSignInView
 from apps.notifications.digest import unsubscribe_view as digest_unsubscribe
 from apps.common.spa import spa_index
 from apps.common.previews import og_image
@@ -66,6 +67,8 @@ urlpatterns = [
     path("api/v1/auth/csrf/", csrf_cookie, name="csrf_cookie"),
     path("api/v1/auth/token/", LoginView.as_view(), name="token_obtain_pair"),
     path("api/v1/auth/token/2fa/", TwoFactorLoginView.as_view(), name="token_two_factor"),
+    path("api/v1/auth/google/", GoogleSignInView.as_view(), name="google_sign_in"),
+    path("api/v1/auth/providers/", AuthProvidersView.as_view(), name="auth_providers"),
     path("api/v1/auth/2fa/", TwoFactorStatusView.as_view(), name="two_factor_status"),
     path("api/v1/auth/2fa/setup/", TwoFactorSetupView.as_view(), name="two_factor_setup"),
     path("api/v1/auth/2fa/confirm/", TwoFactorConfirmView.as_view(), name="two_factor_confirm"),

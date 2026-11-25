@@ -85,3 +85,24 @@ class TwoFactorAuth(models.Model):
     @property
     def enabled(self):
         return self.confirmed_at is not None
+
+
+class SocialLogin(models.Model):
+    """An external sign-in (e.g. Google) linked to an account. `uid` is the provider's
+    stable user id (Google's "sub"), never the email, which can change."""
+
+    GOOGLE = "google"
+    PROVIDERS = [(GOOGLE, "Google")]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="social_logins")
+    provider = models.CharField(max_length=20, choices=PROVIDERS)
+    uid = models.CharField(max_length=255)
+    email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["provider", "uid"], name="unique_social_login")]
+
+    def __str__(self):
+        return f"{self.get_provider_display()} sign-in for {self.user}"

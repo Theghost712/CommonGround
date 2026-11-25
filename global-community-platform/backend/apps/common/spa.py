@@ -12,15 +12,18 @@ from django.views.decorators.http import require_GET
 def content_security_policy():
     media = " ".join(["'self'", "blob:", *settings.CSP_MEDIA_ORIGINS])
     images = " ".join(["'self'", "data:", "blob:", "https:"])
+    google = bool(getattr(settings, "GOOGLE_CLIENT_ID", ""))
+    gsi = "https://accounts.google.com/gsi/"
     return "; ".join([
         "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "script-src 'self'" + (f" {gsi}client" if google else ""),
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com" + (f" {gsi}style" if google else ""),
         "font-src 'self' https://fonts.gstatic.com",
         f"img-src {images}",
         f"media-src {media}",
+        *([f"frame-src {gsi}"] if google else []),
         # Same-origin API and WebSockets, plus direct uploads to object storage.
-        f"connect-src {' '.join(["'self'", *settings.CSP_MEDIA_ORIGINS])}",
+        f"connect-src {' '.join(["'self'", *settings.CSP_MEDIA_ORIGINS, *([gsi] if google else [])])}",
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",

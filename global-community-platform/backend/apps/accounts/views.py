@@ -63,30 +63,35 @@ class LoginView(APIView):
         # Check the password only; tokens are issued below once every check passes.
         serializer = TokenObtainSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        from apps.moderation.services import active_suspension
+        return complete_sign_in(serializer.user)
 
-        suspension = active_suspension(serializer.user)
-        if suspension:
-            until, reason = suspension
-            # The password was right, so it's safe to say why sign-in is refused.
-            return Response({
-                "detail": f"Your account is suspended until {until:%d %b %Y, %H:%M} UTC." + (f" Reason: {reason}" if reason else ""),
-                "code": "account_suspended", "suspended_until": until,
-            }, status=status.HTTP_403_FORBIDDEN)
-        from .two_factor import is_enabled, make_login_challenge
 
-        if is_enabled(serializer.user):
-            # Password is right; no tokens until the second step (/auth/token/2fa/).
-            response = Response({"two_factor_required": True, "challenge": make_login_challenge(serializer.user)})
-            response["Cache-Control"] = "no-store"
-            return response
-        refresh = RefreshToken.for_user(serializer.user)
-        if settings.SIMPLE_JWT.get("UPDATE_LAST_LOGIN"):
-            update_last_login(None, serializer.user)
-        response = Response({"access": str(refresh.access_token)})
-        set_refresh_cookie(response, str(refresh))
+def complete_sign_in(user):
+    """After the first factor (password, Google…): suspension check, 2FA challenge or tokens."""
+    from apps.moderation.services import active_suspension
+
+    suspension = active_suspension(user)
+    if suspension:
+        until, reason = suspension
+        # The first factor was right, so it's safe to say why sign-in is refused.
+        return Response({
+            "detail": f"Your account is suspended until {until:%d %b %Y, %H:%M} UTC." + (f" Reason: {reason}" if reason else ""),
+            "code": "account_suspended", "suspended_until": until,
+        }, status=status.HTTP_403_FORBIDDEN)
+    from .two_factor import is_enabled, make_login_challenge
+
+    if is_enabled(user):
+        # Password is right; no tokens until the second step (/auth/token/2fa/).
+        response = Response({"two_factor_required": True, "challenge": make_login_challenge(user)})
         response["Cache-Control"] = "no-store"
         return response
+    refresh = RefreshToken.for_user(user)
+    if settings.SIMPLE_JWT.get("UPDATE_LAST_LOGIN"):
+        update_last_login(None, user)
+    response = Response({"access": str(refresh.access_token)})
+    set_refresh_cookie(response, str(refresh))
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @method_decorator(csrf_protect, name="dispatch")

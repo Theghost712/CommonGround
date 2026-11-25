@@ -224,7 +224,9 @@ class AccountDeleteView(APIView):
         user = request.user
         if str(request.data.get("confirm", "")).strip().upper() != "DELETE":
             return Response({"confirm": ['Type DELETE to confirm.']}, status=status.HTTP_400_BAD_REQUEST)
-        if not user.check_password(str(request.data.get("password", ""))):
+        # Accounts made with "Sign in with Google" have no password: the typed
+        # confirmation (and the 2FA code, if on) is the check.
+        if user.has_usable_password() and not user.check_password(str(request.data.get("password", ""))):
             return Response({"password": ["Your password is not correct."]}, status=status.HTTP_400_BAD_REQUEST)
         if is_enabled(user) and verify_code(user, request.data.get("code")) is None:
             return Response({"code": ["Enter a code from your authenticator app (or a recovery code)."]}, status=status.HTTP_400_BAD_REQUEST)

@@ -2,7 +2,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { api, ensureCsrfToken, refreshAccessToken, setAccessToken } from '../services/api'
 import { forgetPushOnSignOut } from '../services/push'
 
-export type User = { id: number; username: string; email: string; email_verified: boolean; two_factor_enabled?: boolean; can_moderate?: boolean; is_staff?: boolean; first_name: string; last_name: string }
+export type User = { id: number; username: string; email: string; email_verified: boolean; two_factor_enabled?: boolean
+  has_password?: boolean
+  google_linked?: boolean; can_moderate?: boolean; is_staff?: boolean; first_name: string; last_name: string }
 type AuthValue = {
   user: User | null
   loading: boolean
@@ -10,6 +12,8 @@ type AuthValue = {
   login: (username: string, password: string) => Promise<TwoFactorChallenge | null>
   /** Second sign-in step: a 6-digit app code or a recovery code. */
   completeTwoFactor: (challenge: string, code: string) => Promise<{ recovery_codes_left?: number }>
+  /** Sign in (or sign up) with a Google ID token. Returns a 2FA challenge when needed. */
+  googleSignIn: (credential: string, invitedBy?: string) => Promise<{ challenge: string } | null>
   register: (data: Record<string, string>) => Promise<void>
   logout: () => Promise<void>
   /** Re-read /auth/me/ (after email verification, for example). */
@@ -61,6 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null
   }
 
+  const googleSignIn = async (credential: string, invitedBy = '') => {
+    await ensureCsrfToken()
+    const { data } = await api.post<LoginResponse>('/auth/google/', { credential, invited_by: invitedBy || undefined })
+    if (data.two_factor_required && data.challenge) return { challenge: data.challenge }
+    setAccessToken(data.access ?? null)
+    await fetchMe()
+    return null
+  }
+
   const completeTwoFactor = async (challenge: string, code: string) => {
     await ensureCsrfToken()
     const { data } = await api.post<{ access: string; recovery_codes_left?: number }>('/auth/token/2fa/', { challenge, code })
@@ -92,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else setUser(null)
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, completeTwoFactor, register, logout, reloadUser, applySession }}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={{ user, loading, login, completeTwoFactor, googleSignIn, register, logout, reloadUser, applySession }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

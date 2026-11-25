@@ -407,7 +407,9 @@ LOGGING = {
 
 # Fail fast instead of silently running production on development defaults
 # (dev secret key, DEBUG=True, SQLite, per-process cache for WebSocket tickets).
-DJANGO_ENV = os.getenv("DJANGO_ENV", "development").strip().lower()
+# On Vercel (VERCEL=1 is set by the platform) production rules apply unless overridden,
+# so a missing DJANGO_ENV can't quietly run the live site on development defaults.
+DJANGO_ENV = os.getenv("DJANGO_ENV", "production" if os.getenv("VERCEL") else "development").strip().lower()
 PRODUCTION_REQUIRED_SETTINGS = (
     "DJANGO_SECRET_KEY",
     "DJANGO_ALLOWED_HOSTS",
@@ -440,6 +442,10 @@ FREE_DATABASE_MB = int(os.getenv("FREE_DATABASE_MB", "500"))
 FREE_STORAGE_MB = int(os.getenv("FREE_STORAGE_MB", "1024"))
 # Weekly digest emails per day (Gmail allows ~500 a day in total).
 DIGEST_DAILY_LIMIT = int(os.getenv("DIGEST_DAILY_LIMIT", "200"))
+# Sign in with Google: the OAuth "Web application" client ID from Google Cloud Console.
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+# Google's sign-in pop-up must be able to talk back to this page.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
 if os.getenv("CHANNEL_LAYER") == "postgres":
     # PostgreSQL replaces Redis for the shared cache and live events.
     PRODUCTION_REQUIRED_SETTINGS = tuple(name for name in PRODUCTION_REQUIRED_SETTINGS if name != "REDIS_URL")

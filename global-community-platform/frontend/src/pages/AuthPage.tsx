@@ -2,13 +2,14 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ShieldCheck, UserPlus } from 'lucide-react'
 import AuthShell from '../components/AuthShell'
+import GoogleButton from '../components/GoogleButton'
 import '../account-security.css'
 import { useAuth } from '../context/AuthContext'
 import { getErrorMessage } from '../services/api'
 
 export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const isRegister = mode === 'register'
-  const { login, register, completeTwoFactor } = useAuth()
+  const { login, register, completeTwoFactor, googleSignIn } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   // Arrived through a friend's invite link (…/register?invite=username).
@@ -30,6 +31,16 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         const pending = await login(form.username, form.password)
         if (pending) { setChallenge(pending.challenge); setCode(''); return }
       }
+      navigate('/home')
+    } catch (err) { setError(getErrorMessage(err)) }
+    finally { setBusy(false) }
+  }
+
+  const withGoogle = async (credential: string) => {
+    setBusy(true); setError('')
+    try {
+      const pending = await googleSignIn(credential, invitedBy)
+      if (pending) { setChallenge(pending.challenge); setCode(''); return }
       navigate('/home')
     } catch (err) { setError(getErrorMessage(err)) }
     finally { setBusy(false) }
@@ -75,6 +86,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         {error && <div className="error-message">{error}</div>}
         <button className="button button-primary auth-submit" disabled={busy}>{busy ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'} <ArrowRight size={17} /></button>
       </form>
+      <GoogleButton onCredential={(credential) => void withGoogle(credential)} text={isRegister ? 'signup_with' : 'continue_with'} />
       {!isRegister && <p className="auth-forgot"><Link to="/forgot-password">Forgot password?</Link></p>}
       <p className="auth-switch">{isRegister ? 'Already part of the community?' : 'New to CommonGround?'} <Link to={isRegister ? '/login' : '/register'}>{isRegister ? 'Sign in' : 'Create an account'}</Link></p><p className="terms-note">By continuing, you agree to be respectful, curious, and constructive.</p>
   </AuthShell>
