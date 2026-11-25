@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Compass,
   Home,
+  Inbox,
   LogOut,
   MessageCircle,
   Users,
@@ -41,6 +42,7 @@ const links = [
   { to: '/people', label: 'People', icon: UsersRound },
   { to: '/communities', label: 'Communities', icon: Users },
   { to: '/events-calendar', label: 'Events Calendar', icon: CalendarDays },
+  { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/messages', label: 'Messages', icon: MessageCircle },
 ]
 const BANNER_DISMISSED = 'commonground:verify-banner-dismissed'

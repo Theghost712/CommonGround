@@ -7,6 +7,7 @@ import AuthPage from './pages/AuthPage'
 // Each page is its own chunk, loaded on first visit: the first screen downloads far less.
 const EventsCalendarPage = lazy(() => import('./pages/EventsCalendarPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
+const InboxPage = lazy(() => import('./pages/InboxPage'))
 const CommunitiesPage = lazy(() => import('./pages/CommunitiesPage'))
 const CommunityDetailPage = lazy(() => import('./pages/CommunityDetailPage'))
 const CreateDiscussionPage = lazy(() => import('./pages/CreateDiscussionPage'))
@@ -58,6 +59,7 @@ export default function App() {
       <Route path="/discussions/:id" element={<DiscussionPage />} />
       <Route path="/discussions/:id/edit" element={<CreateDiscussionPage />} />
       <Route path="/bookmarks" element={<BookmarksPage />} />
+      <Route path="/inbox" element={<InboxPage />} />
       <Route path="/messages" element={<ChatPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/notifications/preferences" element={<NotificationPreferencesPage />} />
